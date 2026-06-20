@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>かもしてぽん！ 〜お酒づくりパズル〜</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <h1 class="title">かもしてぽん！</h1>
+      <p class="subtitle">そろえて、かもして、のみごろで「ぽん！」</p>
+    </header>
+
+    <section class="hud">
+      <div class="hud-item">
+        <span class="hud-label">スコア</span>
+        <span class="hud-value" id="score">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">のこり手数</span>
+        <span class="hud-value" id="moves">30</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">コンボ</span>
+        <span class="hud-value" id="combo">-</span>
+      </div>
+    </section>
+
+    <!-- 蔵の注文書（いま受けている納品目標） -->
+    <section class="order-line" id="orderLine"></section>
+
+    <section class="board-area">
+      <div class="board" id="board"></div>
+      <div class="toast-layer" id="toastLayer"></div>
+    </section>
+
+    <!-- システム状態の一行フッター（claude.md 6章準拠） -->
+    <footer class="status-line" id="statusLine">
+      樽 0個 ｜ ベスト 0 ｜ じゅんびちゅう…
+    </footer>
+
+    <div class="controls">
+      <button class="btn btn-sub" id="helpBtn">あそびかた</button>
+      <button class="btn btn-sub" id="restartBtn">はじめから</button>
+      <a class="btn btn-sub" href="tank.html">🛢️タンクモード</a>
+      <a class="btn btn-sub" href="ippon.html">🍶一本仕込み</a>
+      <a class="btn btn-sub" href="sodate.html">🌱そだてモード</a>
+      <a class="btn btn-sub" href="kuramachi.html">🏘️くらまちモード</a>
+    </div>
+  </main>
+
+  <!-- あそびかたモーダル -->
+  <div class="modal-back hidden" id="helpModal">
+    <div class="modal">
+      <h2>あそびかた</h2>
+      <ul class="help-list">
+        <li>となり同士を入れかえて<b>3つそろえる</b>と、<b>仕込み樽 🍶</b> がうまれる</li>
+        <li>樽は1手ごとにそだつ。タップで<b>収穫</b>——<b>待つほど高い</b>けど、待ちすぎると<b>お酢 🫙</b> に…</li>
+        <li>樽のとなりで <b>♨️を消すとそだつ</b>・<b>🧊を消すともどる</b></li>
+        <li><b>📜 ご注文</b>のお酒をとどけて、たくさんかせごう！</li>
+      </ul>
+      <details class="help-details">
+        <summary>こまかいルール</summary>
+        <ul class="help-list">
+          <li>🔵あまざけ20点 → 🟢純米酒80点 → 🟡大吟醸250点。タイルの<b>「+1」「−1」は手数</b>のおまけとコスト</li>
+          <li>くっついた樽は<b>まとめてぽん！</b>（2つ=×1.5、3つ以上=×2）。樽置き場は4つまで</li>
+          <li>お酢はタップでかたづけ。となりで💧を消せば<b>タダで洗い流せる</b></li>
+          <li>はっこうは1手に1〜2、きまぐれにすすむ</li>
+          <li>4つそろえると<b>でか樽（中身2倍）</b>、5つで<b>金樽（3倍）</b>！</li>
+          <li>手数が尽きたら<b>らすとしぼり</b>——のこった樽は全部収穫！</li>
+        </ul>
+      </details>
+      <button class="btn btn-main" id="helpCloseBtn">よし、かもすぞ！</button>
+    </div>
+  </div>
+
+  <!-- 結果モーダル -->
+  <div class="modal-back hidden" id="resultModal">
+    <div class="modal">
+      <h2>しぼりおわり！</h2>
+      <p class="result-score" id="resultScore">0</p>
+      <p class="result-rank" id="resultRank"></p>
+      <p class="result-best" id="resultOrders"></p>
+      <p class="result-best" id="resultBest"></p>
+      <button class="btn btn-main" id="retryBtn">もういっかい かもす！</button>
+    </div>
+  </div>
+
+  <script src="assets/game.js"></script>
+</body>
+</html>

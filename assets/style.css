@@ -1,0 +1,683 @@
+/* かもしてぽん！ スタイル定義
+   酒蔵の世界観：藍色（蔵の暖簾）×生成り（米・麹）×木の樽 */
+
+:root {
+  --ai: #2b4570;          /* 藍色 */
+  --ai-dark: #1d2f4f;
+  --kinari: #faf5e9;      /* 生成り */
+  --wood: #8d6e63;        /* 樽の木 */
+  --wood-dark: #6d4c41;
+  --accent: #e8a33d;      /* 麹の金色 */
+  --good: #5ba35b;
+  --peak: #e8a33d;
+  --danger: #c0564f;
+  --tile-size: min(13.5vw, 64px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  background: linear-gradient(170deg, var(--ai) 0%, var(--ai-dark) 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  color: var(--ai-dark);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 480px;
+  padding: 16px 12px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ---------- ヘッダー ---------- */
+.header { text-align: center; color: var(--kinari); }
+.title {
+  font-size: 2rem;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.25);
+}
+.subtitle { font-size: 0.85rem; opacity: 0.85; margin-top: 2px; }
+
+/* ---------- HUD ---------- */
+.hud {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+.hud-item {
+  background: var(--kinari);
+  border-radius: 12px;
+  padding: 6px 14px;
+  min-width: 92px;
+  text-align: center;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+  position: relative;
+}
+
+/* 手数の増減がHUDからふわっと浮かぶ */
+.moves-float {
+  position: absolute;
+  top: -12px;
+  right: 6px;
+  font-size: 1.05rem;
+  font-weight: bold;
+  animation: floatUp 0.9s ease forwards;
+  pointer-events: none;
+}
+.moves-float.plus { color: #ffd86b; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.moves-float.minus { color: #ff9a8f; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(6px); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-16px); }
+}
+.hud-label { display: block; font-size: 0.7rem; color: var(--wood-dark); }
+.hud-value { display: block; font-size: 1.3rem; font-weight: bold; }
+/* 目標の軸（注文が求める軸）を光らせる */
+.hud-item.target {
+  box-shadow: 0 3px 0 rgba(0,0,0,0.2), 0 0 0 3px var(--accent);
+}
+.hud-item.target::after {
+  content: "ねらい";
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  font-size: 0.6rem;
+  font-weight: bold;
+  color: var(--ai-dark);
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+/* ---------- 蔵の注文書 ---------- */
+.order-line {
+  background: var(--kinari);
+  border-radius: 999px;
+  padding: 7px 18px;
+  font-size: 0.82rem;
+  font-weight: bold;
+  color: var(--wood-dark);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.order-line.done {
+  background: #e3efe3;
+  color: var(--good);
+}
+
+/* ---------- 盤面 ---------- */
+.board-area { position: relative; }
+.board {
+  display: grid;
+  grid-template-columns: repeat(6, var(--tile-size));
+  grid-template-rows: repeat(6, var(--tile-size));
+  gap: 5px;
+  background: var(--wood);
+  border: 6px solid var(--wood-dark);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+}
+
+.cell {
+  width: var(--tile-size);
+  height: var(--tile-size);
+  background: var(--kinari);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--tile-size) * 0.52);
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.cell:active { transform: scale(0.94); }
+
+.cell.selected {
+  /* box-shadowだと特殊パネル（♨️🧊）の内枠に上書きされるためoutlineで描く */
+  outline: 4px solid var(--accent);
+  transform: scale(1.06);
+  z-index: 2;
+}
+
+/* 仕込み樽：発酵ステージごとに光る色が変わる */
+.cell.barrel { background: #fff3dd; }
+.cell.barrel.stage-young { box-shadow: inset 0 0 0 3px #6fa8dc; }
+.cell.barrel.stage-ready { box-shadow: inset 0 0 0 3px var(--good); animation: breathe 1.2s infinite; }
+.cell.barrel.stage-peak  { box-shadow: inset 0 0 0 3px var(--peak); animation: breathe 0.7s infinite; }
+.cell.vinegar { background: #f3d9d6; box-shadow: inset 0 0 0 3px var(--danger); }
+
+/* まとめてぽん予告バッジ（くっついている樽の数） */
+.cluster-badge {
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  font-size: calc(var(--tile-size) * 0.22);
+  font-weight: bold;
+  color: var(--wood-dark);
+  background: rgba(255, 243, 221, 0.9);
+  border-radius: 6px;
+  padding: 0 3px;
+  line-height: 1.4;
+}
+
+/* 特殊パネル：♨️あっため（暖色）と🧊ひやし（寒色）は道具タイル */
+.cell.special-warm { background: #fce7dc; }
+.cell.special-cold { background: #e2f3fb; }
+
+/* でか樽（×2）と金樽（×3）：見た目で利点を伝える */
+.cell.barrel.big { font-size: calc(var(--tile-size) * 0.62); }
+.cell.barrel.gold {
+  font-size: calc(var(--tile-size) * 0.62);
+  background: linear-gradient(150deg, #ffe9a8, #ffd24d);
+}
+.quality-badge {
+  position: absolute;
+  bottom: 2px;
+  left: 3px;
+  font-size: calc(var(--tile-size) * 0.22);
+  font-weight: bold;
+  border-radius: 6px;
+  padding: 0 3px;
+  line-height: 1.4;
+  color: #fff;
+  background: var(--wood-dark);
+}
+.cell.barrel.gold .quality-badge { background: #b8860b; }
+
+/* つながり表示（くらまちモード）：なかま同士は一枚の板に見せる */
+/* つながった側の角丸をなくす */
+.cell.fuse-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cell.fuse-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cell.fuse-d { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.cell.fuse-u { border-top-left-radius: 0; border-top-right-radius: 0; }
+/* マスの間の隙間を同色で埋める（盤のgap=5pxぶん） */
+.cell .fill {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+.cell .fill-r { right: -5px; top: 0; width: 5px; height: 100%; }
+.cell .fill-d { bottom: -5px; left: 0; height: 5px; width: 100%; }
+.cell .fill-c { right: -5px; bottom: -5px; width: 5px; height: 5px; }
+
+/* タンクモード：素材タイル（軸ごとにほんのり色分け） */
+.cell.ingredient-kaori { background: #fbeaf0; }
+.cell.ingredient-koku  { background: #eaf3de; }
+/* 酛（もと）：変換の種。金色に光る特殊タイル */
+.cell.moto-cell {
+  background: #faecc4;
+  box-shadow: inset 0 0 0 3px #e8a33d, 0 0 10px rgba(232,163,61,0.6);
+  animation: shiboruPulse 1.1s infinite;
+}
+/* うまみパネル（こく・かおり）：濃いめの地＋枠で「製品」として目立たせる */
+.cell.panel-kaori { background: #f4c0d1; box-shadow: inset 0 0 0 3px #d4537e; }
+.cell.panel-koku  { background: #c0dd97; box-shadow: inset 0 0 0 3px #639922; }
+.moves-float.kaori { color: #d4537e; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+.moves-float.koku  { color: #639922; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+
+/* 櫂入れボタン */
+.kaiire-btn {
+  width: 100%;
+  max-width: 320px;
+  font-size: 0.95rem;
+}
+.kaiire-btn.active {
+  background: var(--accent);
+  color: var(--ai-dark);
+  box-shadow: 0 4px 0 #b97f24;
+  animation: shiboruPulse 0.8s infinite;
+}
+.kaiire-btn:disabled { opacity: 0.45; cursor: default; }
+/* 櫂入れ中：盤面に「列をえらんで」のヒント */
+body.kaiire-mode .board { outline: 3px dashed var(--accent); outline-offset: 3px; }
+
+/* しぼるボタン＝発酵バー（発酵で満ちていき、金の帯＝ピークに届いたら「いまだ」） */
+.shiboru-btn {
+  position: relative;
+  font-size: 1.2rem;
+  padding: 14px 36px;
+  width: 100%;
+  max-width: 320px;
+  color: var(--ai-dark);
+  background: var(--kinari);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+.shiboru-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0%;
+  z-index: 0;
+  transition: width 0.35s ease, background 0.35s ease;
+}
+.shiboru-fill.s-young { background: #bcd5ec; }
+.shiboru-fill.s-ready { background: #b6e0a0; }
+.shiboru-fill.s-peak  { background: var(--accent); }
+.shiboru-fill.s-over  { background: #f0a98f; }
+/* ピーク帯（発酵60〜90%＝しぼりどき）を金の縞で示す */
+.shiboru-peakzone {
+  position: absolute;
+  left: 60%; width: 30%; top: 0; bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(45deg, rgba(184,124,36,0.5) 0 5px, rgba(184,124,36,0.18) 5px 10px);
+  border-left: 1px solid rgba(184,124,36,0.5);
+  border-right: 1px solid rgba(184,124,36,0.5);
+}
+.shiboru-label { position: relative; z-index: 2; }
+.shiboru-btn.peak-now { animation: shiboruPulse 0.8s infinite; }
+@keyframes shiboruPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 0 rgba(0,0,0,0.25); }
+  50% { transform: scale(1.04); box-shadow: 0 4px 18px rgba(232,163,61,0.85); }
+}
+
+/* 結果：お客さんの反応 */
+.result-reaction {
+  font-size: 1rem;
+  color: var(--wood-dark);
+  font-style: italic;
+}
+
+/* 蔵の格（長期ゴール） */
+.prestige {
+  background: var(--ai);
+  border-radius: var(--border-radius-lg, 12px);
+  padding: 12px 16px;
+  color: var(--kinari);
+}
+.prestige-rank { font-size: 1.1rem; font-weight: bold; }
+.prestige-bar {
+  height: 10px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 8px 0 4px;
+}
+.prestige-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+.prestige-next { font-size: 0.78rem; opacity: 0.9; }
+.prestige-unlock {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.25);
+  font-size: 0.82rem;
+  font-weight: bold;
+  color: var(--accent);
+  line-height: 1.5;
+}
+
+/* 蔵の見た目：ランクで盤面の枠が格上げ */
+.board.kura-rank-2 { border-color: #5a4233; }
+.board.kura-rank-3 { border-color: var(--accent); }
+.board.kura-rank-4 { border-color: var(--accent); box-shadow: 0 6px 0 rgba(0,0,0,0.3), 0 0 14px rgba(232,163,61,0.5); }
+
+/* 蔵だな（コレクション・折りたたみ） */
+.cellar-details { text-align: left; font-size: 0.85rem; }
+.cellar-details summary { cursor: pointer; font-weight: bold; color: var(--wood-dark); padding: 4px 0; }
+.cellar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 160px;
+  overflow-y: auto;
+  text-align: left;
+}
+.cellar-bottle {
+  font-size: 0.82rem;
+  padding: 4px 8px;
+  background: var(--color-background-secondary, #f1efe8);
+  border-radius: 8px;
+  color: var(--wood-dark);
+}
+
+/* 値バッジ（くらまちモード：お米換算の値） */
+.value-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: calc(var(--tile-size) * 0.22);
+  font-weight: bold;
+  border-radius: 6px;
+  padding: 0 3px;
+  line-height: 1.4;
+  color: var(--kinari);
+  background: var(--ai);
+}
+
+/* 軸バッジ（一本仕込み：この樽をしぼると伸びる軸） */
+.axis-badge {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: calc(var(--tile-size) * 0.2);
+  font-weight: bold;
+  border-radius: 6px;
+  padding: 0 3px;
+  line-height: 1.4;
+  color: #fff;
+}
+.axis-badge.kaori { background: #d4537e; }
+.axis-badge.koku { background: #639922; }
+
+/* 手数バッジ：ピーク樽の「+1」とお酢の「−1」（ルールをイラストで伝える） */
+.move-badge {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: calc(var(--tile-size) * 0.22);
+  font-weight: bold;
+  border-radius: 6px;
+  padding: 0 3px;
+  line-height: 1.4;
+}
+.move-badge.plus { color: #7a5a12; background: rgba(255, 223, 128, 0.95); }
+.move-badge.minus { color: #fff; background: var(--danger); }
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+
+/* 発酵ゲージ（樽の下の点々） */
+.gauge {
+  display: flex;
+  gap: 2px;
+  margin-top: -2px;
+}
+.gauge i {
+  width: calc(var(--tile-size) * 0.09);
+  height: calc(var(--tile-size) * 0.09);
+  border-radius: 50%;
+  background: #d9cdb8;
+}
+.gauge i.on { background: var(--wood-dark); }
+.stage-ready .gauge i.on { background: var(--good); }
+.stage-peak .gauge i.on { background: var(--peak); }
+
+/* そだった瞬間：ぽよんと弾んで、金色のリングがふわっと広がる */
+.cell.grow {
+  animation: growIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+             growRing 0.6s ease-out;
+  z-index: 3;
+}
+@keyframes growIn {
+  0% { transform: scale(0.2); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@keyframes growRing {
+  0% { outline: 3px solid rgba(232, 163, 61, 0.9); outline-offset: 0; }
+  100% { outline: 3px solid rgba(232, 163, 61, 0); outline-offset: 12px; }
+}
+
+/* 変身チップ：そだったマスの真上に「🌾→🍚 むしまい！」 */
+.grow-chip {
+  position: absolute;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: var(--ai-dark);
+  font-weight: bold;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: chipRise 1s ease forwards;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  z-index: 4;
+}
+@keyframes chipRise {
+  0% { opacity: 0; margin-top: 4px; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; margin-top: -22px; }
+}
+
+/* 消えるアニメーション・落ちてくるアニメーション */
+.cell.pop { animation: pop 0.2s ease forwards; }
+@keyframes pop {
+  to { transform: scale(0); opacity: 0; }
+}
+.cell.drop { animation: drop 0.2s ease; }
+@keyframes drop {
+  from { transform: translateY(calc(var(--tile-size) * -0.8)); opacity: 0.3; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ---------- 得点トースト ---------- */
+.toast-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.toast {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ai-dark);
+  color: var(--kinari);
+  font-weight: bold;
+  font-size: 0.95rem;
+  padding: 6px 16px;
+  border-radius: 999px;
+  white-space: nowrap;
+  animation: rise 1.1s ease forwards;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+}
+@keyframes rise {
+  0% { opacity: 0; margin-top: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; margin-top: -46px; }
+}
+
+/* ---------- フッター状態表示 ---------- */
+.status-line {
+  color: var(--kinari);
+  font-size: 0.8rem;
+  opacity: 0.85;
+  text-align: center;
+}
+
+/* ---------- ボタン ---------- */
+.controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+a.btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.btn {
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 22px;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.btn:active { transform: scale(0.95); }
+.btn-main {
+  background: var(--accent);
+  color: var(--ai-dark);
+  box-shadow: 0 4px 0 #b97f24;
+}
+.btn-sub {
+  background: var(--kinari);
+  color: var(--ai-dark);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+}
+
+/* ---------- モーダル ---------- */
+.modal-back {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 50, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: 16px;
+}
+.modal-back.hidden { display: none; }
+.modal {
+  background: var(--kinari);
+  border-radius: 20px;
+  padding: 26px 22px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 8px 0 rgba(0,0,0,0.3);
+}
+.modal h2 { color: var(--ai); letter-spacing: 0.1em; }
+.help-list {
+  text-align: left;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  padding-left: 1.2em;
+}
+.help-details {
+  text-align: left;
+  font-size: 0.85rem;
+}
+.help-details summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: var(--wood-dark);
+  padding: 4px 0;
+}
+.help-details .help-list {
+  font-size: 0.82rem;
+  margin-top: 6px;
+}
+.result-score {
+  font-size: 2.6rem;
+  font-weight: bold;
+  color: var(--ai);
+}
+.result-rank { font-size: 1.2rem; font-weight: bold; color: var(--wood-dark); }
+.result-best { font-size: 0.85rem; color: var(--wood-dark); }
+
+/* ---------- 地図モーダル ---------- */
+.map-modal {
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px 16px;
+}
+.map-count {
+  font-weight: bold;
+  color: var(--wood-dark);
+  margin-bottom: 12px;
+}
+.map-regions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+  margin-bottom: 16px;
+}
+.map-region-name {
+  font-weight: bold;
+  color: var(--ai);
+  border-bottom: 2px solid var(--wood);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+.map-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.map-chip {
+  background: #fff;
+  border: 1px solid var(--wood);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: var(--wood-dark);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.1s ease;
+}
+.map-chip:active { transform: scale(0.95); }
+.map-chip.conquered {
+  background: #fdf3e8;
+  border-color: var(--accent);
+  color: #b8860b;
+  font-weight: bold;
+}
+.map-chip.current {
+  background: var(--ai);
+  border-color: var(--ai);
+  color: #fff;
+}
+
+/* ---------- 蔵の格（リザルト画面） ---------- */
+.prestige {
+  background: #fdf3e8;
+  border-radius: 12px;
+  padding: 12px;
+  margin: 12px 0;
+  border: 2px solid var(--accent);
+}
+.prestige-rank { font-weight: bold; color: var(--ai); font-size: 1.1rem; }
+.prestige-bar {
+  background: #e2d8c9;
+  height: 8px;
+  border-radius: 4px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+.prestige-fill {
+  background: var(--accent);
+  height: 100%;
+  transition: width 0.5s ease;
+}
+.prestige-next { font-size: 0.8rem; color: var(--wood-dark); }
+.prestige-unlock {
+  font-size: 0.8rem;
+  color: var(--danger);
+  font-weight: bold;
+  margin-top: 6px;
+}
+
+/* しぼるボタンの状態 */
+.btn-young { background: #6fa8dc; color: #fff; box-shadow: 0 4px 0 #4a86c6; }
+.btn-ready { background: var(--good); color: #fff; box-shadow: 0 4px 0 #3d823d; }
+.btn-peak { background: var(--peak); color: var(--ai-dark); box-shadow: 0 4px 0 #b97f24; animation: breathe 0.7s infinite; }
+.btn-over { background: var(--danger); color: #fff; box-shadow: 0 4px 0 #9c3b36; animation: shake 0.4s infinite; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}

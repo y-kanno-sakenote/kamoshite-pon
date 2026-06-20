@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>かもしてぽん！一本仕込み（プロトタイプ）</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <h1 class="title">かもしてぽん！</h1>
+      <p class="subtitle">🍶一本仕込み：今年の一本を、醸す。</p>
+    </header>
+
+    <section class="hud">
+      <div class="hud-item">
+        <span class="hud-label">かおり 香</span>
+        <span class="hud-value" id="score">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">のこり手数</span>
+        <span class="hud-value" id="moves">30</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">こく</span>
+        <span class="hud-value" id="combo">0</span>
+      </div>
+    </section>
+
+    <!-- 注文（今回つくってほしい酒の目標スペック） -->
+    <section class="order-line" id="orderLine"></section>
+
+    <section class="board-area">
+      <div class="board" id="board"></div>
+      <div class="toast-layer" id="toastLayer"></div>
+    </section>
+
+    <!-- いまこんなお酒になりそう、のライブプレビュー（claude.md 6章準拠） -->
+    <footer class="status-line" id="statusLine">
+      じゅんびちゅう…
+    </footer>
+
+    <div class="controls">
+      <button class="btn btn-sub" id="helpBtn">あそびかた</button>
+      <button class="btn btn-sub" id="restartBtn">はじめから</button>
+      <a class="btn btn-sub" href="index.html">ふつうモードへ</a>
+    </div>
+  </main>
+
+  <!-- あそびかたモーダル -->
+  <div class="modal-back hidden" id="helpModal">
+    <div class="modal">
+      <h2>あそびかた</h2>
+      <ul class="help-list">
+        <li>となり同士を入れかえて<b>3つそろえる</b>と、<b>仕込み樽 🍶</b> がうまれる</li>
+        <li>樽をタップで<b>しぼる</b>。しぼるタイミングで、お酒の個性が変わる！</li>
+        <li><b>🟢のみごろ＝こく</b>（緑）／ <b>🟡ピーク＝かおり</b>（金）が伸びる</li>
+        <li><b>📜 ご注文</b>の酒に近づけて、今年の<b>一本</b>を仕上げよう！</li>
+      </ul>
+      <details class="help-details">
+        <summary>こまかいルール</summary>
+        <ul class="help-list">
+          <li>樽の<b>「香」「こく」バッジ</b>＝今しぼったら伸びる軸。下のバーが「いまこんなお酒」</li>
+          <li>♨️で<b>はやく</b>ピークへ（かおり狙い）／ 🧊で<b>ゆっくり</b>のみごろ維持（こく狙い）</li>
+          <li>待ちすぎると<b>お酢 🫙</b> に…酒が<b>にごる</b>（💧で洗えばタダ／タップは手数1）</li>
+          <li>くっついた樽は<b>まとめてぽん！</b>（2つ=×1.5、3つ以上=×2）。樽置き場は4つまで</li>
+          <li>4つそろえると<b>でか樽（2倍）</b>、5つで<b>金樽（3倍）</b>！</li>
+          <li>手数が尽きたら<b>らすとしぼり</b>——のこった樽も全部しぼって、一本が完成！</li>
+        </ul>
+      </details>
+      <button class="btn btn-main" id="helpCloseBtn">よし、かもすぞ！</button>
+    </div>
+  </div>
+
+  <!-- 結果モーダル（できあがった一本のお披露目） -->
+  <div class="modal-back hidden" id="resultModal">
+    <div class="modal">
+      <h2>今年の一本、できました！</h2>
+      <p class="result-score" id="resultScore">◎</p>
+      <p class="result-rank" id="resultRank"></p>
+      <p class="result-best" id="resultOrders"></p>
+      <p class="result-best" id="resultBest"></p>
+      <button class="btn btn-main" id="retryBtn">もういっかい かもす！</button>
+    </div>
+  </div>
+
+  <script src="assets/ippon.js"></script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>かもしてぽん！タンクモード（プロトタイプ）</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <h1 class="title">かもしてぽん！</h1>
+      <p class="subtitle">🛢️タンクモード：そろえて貯めて、発酵を見て、しぼる。</p>
+    </header>
+
+    <section class="hud">
+      <div class="hud-item">
+        <span class="hud-label">かおり 🌸</span>
+        <span class="hud-value" id="kaoriVal">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">こく 🍵</span>
+        <span class="hud-value" id="kokuVal">0</span>
+      </div>
+    </section>
+
+    <!-- 注文（今回つくってほしい酒） -->
+    <section class="order-line" id="orderLine"></section>
+
+    <section class="board-area">
+      <div class="board" id="board"></div>
+      <div class="toast-layer" id="toastLayer"></div>
+    </section>
+
+    <footer class="status-line" id="statusLine">じゅんびちゅう…</footer>
+
+    <button class="btn btn-sub kaiire-btn" id="kaiireBtn">🥢 櫂入れ（のこり2）</button>
+    <button class="btn shiboru-btn" id="shiboruBtn">
+      <span class="shiboru-fill" id="shiboruFill"></span>
+      <span class="shiboru-peakzone"></span>
+      <span class="shiboru-label" id="shiboruLabel">🍶 しぼる！</span>
+    </button>
+
+    <div class="controls">
+      <button class="btn btn-sub" id="helpBtn">あそびかた</button>
+      <button class="btn btn-sub" id="restartBtn">はじめから</button>
+      <button class="btn btn-sub" id="mapBtn">🗾 地図をひらく</button>
+      <a class="btn btn-sub" href="index.html">ふつうモードへ</a>
+    </div>
+  </main>
+
+  <!-- あそびかたモーダル -->
+  <div class="modal-back hidden" id="helpModal">
+    <div class="modal">
+      <h2>あそびかた</h2>
+      <ul class="help-list">
+        <li>盤面ぜんぶが<b>1本のタンク</b>。となり同士を入れかえて素材を<b>3つそろえる</b></li>
+        <li><b>🌾米・🦠酵母</b>で<b>🍵こくパネル</b>、<b>💧水・🍚麹</b>で<b>🌸かおりパネル</b>が生まれて底に溜まる</li>
+        <li>たまったパネルを<b>タップ</b>すると、まわりの<b>同じ数字</b>がひとつにまとまる（手数はつかわない）。作業場が空いて、こく・かおりが太る</li>
+        <li>ときどき<b>🫧酛（もと）</b>が降ってくる。<b>となりの素材と入れかえる</b>と、その素材が<b>3×3（9マス）に広がる</b>！ 米と入れかえれば こく、水なら かおり＝<b>狙った軸を自分で増やせる</b></li>
+        <li><b>🥢櫂入れ</b>（1仕込み2回）：よこ一列の素材を<b>さらってお掃除</b>。盤面が詰まったときの立て直しに（うまみは増えない）</li>
+        <li>そろえるたび<b>発酵がすすむ</b>。<b>🍶しぼるボタンが金色「いまだ！」</b>になったら、しぼりどき！</li>
+        <li>待ちすぎるとボタンが<b>赤「はやくしぼって！」</b>＝お酢🫙でにごる。早すぎても未熟。<b>見きわめが勝負</b></li>
+      </ul>
+      <details class="help-details">
+        <summary>こまかいルール</summary>
+        <ul class="help-list">
+          <li>しぼったお酒は<b>かおり＋こく</b>の合計で格（普通酒→純米酒→吟醸→大吟醸）が決まる</li>
+          <li>ピークでしぼると<b>1.6倍</b>、のみごろ等倍、あまざけは控えめ</li>
+          <li>かおりとこくのかたよりで<b>個性</b>（華やか／ふくよか／ととのった）が決まる</li>
+          <li>4つ・5つそろえ＆れんさは、たくさん貯まる</li>
+          <li>📜ご注文に近づけるほど高評価。できた一本は<b>蔵だな</b>に並ぶ</li>
+          <li>県ごとに<b>「目指す味」</b>がある（新潟＝淡麗、兵庫＝芳醇…）。その味に寄せるほど高評価＝蔵の格UP</li>
+          <li>蔵が育つほど<b>審査がきびしく</b>なる（◎の窓がせまく）。同じ味を、より高い精度で！</li>
+          <li>一本ごとに<b>蔵の格</b>が上がる。<b>伝説の蔵</b>まで育てたら、その県を<b>制覇</b>して次の地方へ！</li>
+          <li>昇格でタンクが広がり・新しいお客さん・特別な銘柄が解禁。めざせ<b>全国統一</b>🎌</li>
+        </ul>
+      </details>
+      <button class="btn btn-main" id="helpCloseBtn">よし、かもすぞ！</button>
+    </div>
+  </div>
+
+  <!-- 結果モーダル -->
+  <div class="modal-back hidden" id="resultModal">
+    <div class="modal">
+      <h2>今年の一本、できました！</h2>
+      <p class="result-score" id="resultScore">◎</p>
+      <p class="result-rank" id="resultRank"></p>
+      <p class="result-reaction" id="resultReaction"></p>
+      <p class="result-best" id="resultOrders"></p>
+      <div class="prestige" id="prestigeBox"></div>
+      <details class="cellar-details">
+        <summary>蔵だな（あつめた一本）</summary>
+        <div class="cellar-list" id="cellarList"></div>
+      </details>
+      <button class="btn btn-main" id="retryBtn">もういっぽん かもす！</button>
+      <button class="btn btn-sub" id="resultMapBtn" style="margin-top: 8px;">🗾 次の県をえらぶ</button>
+    </div>
+  </div>
+
+  <!-- 全国地図モーダル -->
+  <div class="modal-back hidden" id="mapModal">
+    <div class="modal map-modal">
+      <h2>全国の酒蔵</h2>
+      <p class="map-count" id="mapCount"></p>
+      <div class="map-regions" id="mapRegions"></div>
+      <button class="btn btn-main" id="mapCloseBtn">蔵にもどる</button>
+    </div>
+  </div>
+
+  <script src="assets/tank.js"></script>
+</body>
+</html>

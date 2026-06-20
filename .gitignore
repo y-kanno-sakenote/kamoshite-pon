@@ -1,0 +1,6 @@
+# 公開しないもの（設計メモ・開発資料）
+claude.md
+docs/
+prefecture_sake_data.md
+README.md
+.DS_Store
