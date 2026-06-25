@@ -1,0 +1,58 @@
+/* かもしてぽん！タンクモード（シーソーゲージ版）専用スタイル
+   ベースはタンクモードそのまま。ここでは盤面の横に立つ
+   「シーソーゲージ（香り↑↔こく↓の偏り）」だけを定義する。
+   色・ボタン・盤面セルは style.css を継承して使う。 */
+
+.dev-badge {
+  font-size: 0.55rem; vertical-align: middle; margin-left: 6px;
+  background: var(--accent); color: var(--ai-dark); border-radius: 999px; padding: 2px 8px; font-weight: bold;
+}
+
+/* ゲージ ＋ 盤面 を横並び（盤面の高さにゲージを合わせる） */
+.play-area { display: flex; gap: 10px; align-items: stretch; justify-content: center; }
+
+.gauge { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.gauge-cap { flex: 0 0 auto; font-size: 0.55rem; line-height: 1.05; text-align: center; color: var(--kinari); font-weight: bold; }
+
+/* ゲージ本体：上=香り(桃)／下=こく(緑)／中央=つりあい */
+.gauge-track {
+  position: relative; width: 30px; flex: 1 1 auto; min-height: 220px;
+  border-radius: 15px;
+  background: linear-gradient(to top, #639922 0%, #b6cf9a 40%, #f0e6d2 50%, #e6b3c6 60%, #d4537e 100%);
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,0.15), 0 3px 0 rgba(0,0,0,0.2);
+}
+/* ○帯（外・広い）と ◎帯（内・狭い）＝ねらいゾーン（蔵の格で狭まる） */
+.gauge-zone2 { position: absolute; left: -3px; right: -3px; background: rgba(91,163,91,0.16); border-radius: 4px; z-index: 1; }
+.gauge-zone  { position: absolute; left: -4px; right: -4px; background: rgba(91,163,91,0.40); border-top: 2px solid var(--good); border-bottom: 2px solid var(--good); border-radius: 4px; z-index: 2; }
+/* 中央0（つりあい）のライン */
+.gauge-center { position: absolute; left: -4px; right: -4px; height: 2px; bottom: 50%; background: rgba(0,0,0,0.35); z-index: 3; }
+/* 偏りの液柱（中央から現在値まで） */
+.gauge-fill { position: absolute; left: 50%; transform: translateX(-50%); width: 12px; border-radius: 6px; z-index: 4; transition: bottom 0.2s, height 0.2s; }
+.gauge-fill.to-kaori { background: #d4537e; }
+.gauge-fill.to-koku  { background: #4f8c1e; }
+/* 液面ライン＋数値（ねらい◎なら緑・○なら金） */
+.gauge-marker { position: absolute; left: -7px; right: -7px; height: 0; z-index: 5; border-top: 3px solid #2b2b2b; transition: bottom 0.2s; }
+.gauge-marker.maru  { border-top-color: var(--good); }
+.gauge-marker.maru2 { border-top-color: var(--accent); }
+.gauge-val {
+  position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 6px;
+  font-size: 0.62rem; font-weight: bold; color: var(--ai-dark);
+  background: var(--kinari); border-radius: 999px; padding: 1px 6px; white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.gauge-marker.maru  .gauge-val { background: var(--good); color: #fff; }
+.gauge-marker.maru2 .gauge-val { background: var(--accent); color: var(--ai-dark); }
+
+/* マッチで生まれたパネルが定位置へ：香りは下から立ちのぼる／こくは上から沈む */
+.cell.rise-kaori { animation: riseKaori 0.42s ease-out; z-index: 2; }
+@keyframes riseKaori {
+  0%   { transform: translateY(70%) scale(0.65); opacity: 0; }
+  55%  { transform: translateY(-10%) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.cell.sink-koku { animation: sinkKoku 0.42s ease-out; z-index: 2; }
+@keyframes sinkKoku {
+  0%   { transform: translateY(-70%) scale(0.65); opacity: 0; }
+  55%  { transform: translateY(10%) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
