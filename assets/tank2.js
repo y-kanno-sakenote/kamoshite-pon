@@ -260,6 +260,19 @@
     boardEl.style.gridTemplateColumns = `repeat(${COLS}, var(--tile-size))`;
     boardEl.style.gridTemplateRows = `repeat(${ROWS}, var(--tile-size))`;
     boardEl.innerHTML = "";
+    // 選択中がパネルなら、隣接する「同じ軸・同じ数字」のパネルをまとめ候補としてハイライト
+    const mergeTargets = {};
+    if (selected) {
+      const st = board[selected.r][selected.c];
+      if (st && st.kind === "panel") {
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const rr = selected.r + dr, cc = selected.c + dc;
+          if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) continue;
+          const t2 = board[rr][cc];
+          if (t2 && t2.kind === "panel" && t2.axis === st.axis && t2.value === st.value) mergeTargets[`${rr},${cc}`] = true;
+        }
+      }
+    }
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const cell = document.createElement("div");
       cell.className = "cell";
@@ -274,6 +287,7 @@
       } else if (t.kind === "panel") {
         const def = AXIS_DEF[t.axis];
         cell.textContent = def.emoji; cell.classList.add(def.cls);
+        cell.classList.add("pv-" + Math.max(0, Math.min(6, Math.round(Math.log2(t.value))))); // 数字ごとに濃淡
         cell.title = `${def.name}パネル（${t.value}）`;
         const vb = document.createElement("span"); vb.className = "value-badge"; vb.textContent = t.value; cell.appendChild(vb);
       } else if (t.kind === "moto") {
@@ -283,8 +297,9 @@
       }
       const key = `${r},${c}`;
       if (extraClasses[key]) cell.classList.add(extraClasses[key]);
+      if (mergeTargets[key]) cell.classList.add("merge-target");
       if (selected && selected.r === r && selected.c === c) cell.classList.add("selected");
-      cell.addEventListener("pointerdown", onCellTap);
+      cell.addEventListener("pointerdown", onCellDown);
       boardEl.appendChild(cell);
     }
     updateHud();
@@ -486,27 +501,52 @@
     return dropClasses;
   }
 
-  function onCellTap(e) {
+  // 隣接2マスのアクション：パネル同士（同じ軸・同じ数字）→まとめ／素材・酛どうし→入れかえ。成立で true
+  function doAdjacentAction(a, b) {
+    const ta = board[a.r][a.c], tb = board[b.r][b.c];
+    if (!ta || !tb) return false;
+    if (ta.kind === "panel" && tb.kind === "panel" && ta.axis === tb.axis && ta.value === tb.value) { mergePair(a, b); return true; }
+    if (ta.kind !== "panel" && tb.kind !== "panel") { trySwap(a, b); return true; }
+    return false; // かみ合わない組み合わせ
+  }
+
+  // ドラッグ／スワイプで隣へスッと動かすと、その瞬間に入れかえ／まとめ。
+  // 動かさず離せばタップ（2タップで選んで合わせる方式も残す）。
+  let dragStart = null, swipeFired = false;
+  function tileSizePx() { const c0 = boardEl.querySelector(".cell"); return c0 ? c0.getBoundingClientRect().width : 50; }
+  function onCellDown(e) {
     if (busy || gameOver) return;
     const r = Number(e.currentTarget.dataset.r), c = Number(e.currentTarget.dataset.c);
     if (kaiireMode) { setKaiireMode(false); kaiireRow(r); return; }
-    const t = board[r][c];
-    if (!t) return;
-    // 素材・酛・パネルすべて「えらんで合わせる」方式（どの2枚を入れかえ/まとめるか自分で選ぶ）
+    if (!board[r][c]) return;
+    dragStart = { r, c, x: e.clientX, y: e.clientY };
+    swipeFired = false;
+  }
+  function onPointerMove(e) {
+    if (!dragStart || swipeFired || busy || gameOver) return;
+    const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (Math.max(ax, ay) < tileSizePx() * 0.4) return; // タイルの4割動いたらスワイプ確定
+    swipeFired = true;
+    const from = { r: dragStart.r, c: dragStart.c };
+    const tr = from.r + (ax > ay ? 0 : (dy > 0 ? 1 : -1));
+    const tc = from.c + (ax > ay ? (dx > 0 ? 1 : -1) : 0);
+    dragStart = null; selected = null;
+    if (tr >= 0 && tr < ROWS && tc >= 0 && tc < COLS && board[tr][tc]) doAdjacentAction(from, { r: tr, c: tc });
+    else render();
+  }
+  function onPointerUp() {
+    if (!dragStart) return;
+    const { r, c } = dragStart; dragStart = null;
+    if (swipeFired || busy || gameOver) return;
     if (selected === null) { selected = { r, c }; render(); return; }
     const same = selected.r === r && selected.c === c;
     const adj = Math.abs(selected.r - r) + Math.abs(selected.c - c) === 1;
     if (same) { selected = null; render(); return; }
     if (adj) {
       const from = selected; selected = null;
-      const ta = board[from.r][from.c], tb = board[r][c];
-      // パネル同士・同じ軸・同じ数字 → 2枚をまとめて倍に
-      if (ta && tb && ta.kind === "panel" && tb.kind === "panel" && ta.axis === tb.axis && ta.value === tb.value) {
-        mergePair(from, { r, c }); return;
-      }
-      // 素材・酛どうし → 入れかえ（既存）。かみ合わない組み合わせは選び直し
-      if (ta && tb && ta.kind !== "panel" && tb.kind !== "panel") { trySwap(from, { r, c }); return; }
-      selected = { r, c }; render(); return;
+      if (!doAdjacentAction(from, { r, c })) { selected = { r, c }; render(); }
+      return;
     }
     selected = { r, c }; render();
   }
@@ -594,11 +634,15 @@
     const tb = board[b.r][b.c];
     busy = true;
     const newValue = tb.value * 2;
+    // まとめると発酵が少し冷える（時間延長）：大きくまとめるほど冷却が大きい。
+    // 1手＝発酵+3% に対して効きすぎないよう緩めに：2/4/8→-1% ／ 16/32→-2% ／ 64/128→-3% …最大-5%
+    const coolingEffect = Math.max(1, Math.min(5, Math.floor(Math.log2(newValue) / 2)));
+    ferment = Math.max(0, ferment - coolingEffect);
     render({ [`${a.r},${a.c}`]: "pop" }); await sleep(160);
     board[a.r][a.c] = null;
     board[b.r][b.c] = makePanel(tb.axis, newValue);
     const juku = jukuseiNameOf(newValue);
-    toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}`);
+    toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}（発酵度 -${coolingEffect}%）`);
     render({ [`${b.r},${b.c}`]: "grow" }); await sleep(220);
     applyGravity();
     render(refill()); await sleep(160);
@@ -870,6 +914,10 @@
   document.getElementById("mapCloseBtn").addEventListener("click", closeMap);
   shiboruBtn.addEventListener("click", () => { if (!busy && !gameOver) shiboru(false); });
   kaiireBtn.addEventListener("click", toggleKaiire);
+  // ドラッグ／スワイプ検知（盤面外まで動いても拾えるよう document で受ける）
+  document.addEventListener("pointermove", onPointerMove);
+  document.addEventListener("pointerup", onPointerUp);
+  document.addEventListener("pointercancel", () => { dragStart = null; });
 
   startGame();
   helpModal.classList.remove("hidden");

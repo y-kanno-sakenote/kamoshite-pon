@@ -43,6 +43,44 @@
 .gauge-marker.maru  .gauge-val { background: var(--good); color: #fff; }
 .gauge-marker.maru2 .gauge-val { background: var(--accent); color: var(--ai-dark); }
 
+/* ドラッグ／スワイプ操作中にページがスクロールしないように */
+.board { touch-action: none; }
+
+/* ---------- パネルの数字を見やすく（数字ごとの濃淡＋大きい数字＋まとめ候補ハイライト） ---------- */
+/* 数字ごとに背景の濃淡（軸の色系統の中で：かおり＝桃系／こく＝緑系）。絵文字で軸は判別できる */
+.cell.panel-kaori.pv-0 { background: #fde3ed; }
+.cell.panel-kaori.pv-1 { background: #fbc4dc; }
+.cell.panel-kaori.pv-2 { background: #f697c2; }
+.cell.panel-kaori.pv-3 { background: #ef67a1; }
+.cell.panel-kaori.pv-4 { background: #e23c85; }
+.cell.panel-kaori.pv-5 { background: #c01d6c; }
+.cell.panel-kaori.pv-6 { background: #8d1559; }
+.cell.panel-koku.pv-0 { background: #eaf6de; }
+.cell.panel-koku.pv-1 { background: #c9e6a1; }
+.cell.panel-koku.pv-2 { background: #a0d264; }
+.cell.panel-koku.pv-3 { background: #70ad36; }
+.cell.panel-koku.pv-4 { background: #428b2b; }
+.cell.panel-koku.pv-5 { background: #1f724b; }
+.cell.panel-koku.pv-6 { background: #0c6051; }
+
+/* 絵文字は少し小さく、数字を大きく・高コントラスト（暗いピル＋白文字） */
+.cell.panel-kaori, .cell.panel-koku { font-size: calc(var(--tile-size) * 0.42); }
+.cell .value-badge {
+  bottom: 1px; right: 2px;
+  font-size: calc(var(--tile-size) * 0.34);
+  font-weight: 900; line-height: 1.15;
+  padding: 0 5px; border-radius: 8px;
+  color: #fff; background: rgba(35,35,35,0.85);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.45);
+}
+
+/* まとめ候補（選択中パネルと同じ数字の隣）を金色に光らせる */
+.cell.merge-target { animation: mergePulse 0.6s ease-in-out infinite; z-index: 1; }
+@keyframes mergePulse {
+  0%, 100% { box-shadow: inset 0 0 0 4px var(--accent); }
+  50% { box-shadow: inset 0 0 0 4px #fff, 0 0 10px 3px var(--accent); }
+}
+
 /* マッチで生まれたパネルが定位置へ：香りは下から立ちのぼる／こくは上から沈む */
 .cell.rise-kaori { animation: riseKaori 0.42s ease-out; z-index: 2; }
 @keyframes riseKaori {
