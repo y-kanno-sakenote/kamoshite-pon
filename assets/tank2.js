@@ -143,7 +143,8 @@
 
   // ---------- DOM ----------
   const boardEl = document.getElementById("board");
-  const statusEl = document.getElementById("statusLine");
+  const statusSake = document.getElementById("statusSake");
+  const statusFit  = document.getElementById("statusFit");
   const toastLayer = document.getElementById("toastLayer");
   const shiboruBtn = document.getElementById("shiboruBtn");
   const shiboruFill = document.getElementById("shiboruFill");
@@ -329,7 +330,10 @@
       const fit = evalFit(order.id, s.kaori, s.koku, rankIdx);
       fitMark = fit.mark;
       const nigoriTxt = nigori > 0 ? `（にごり -${nigori}）` : "";
-      statusEl.textContent = `いまの一本：${b.adj}${b.grade}${nigoriTxt}　ご注文 ${fit.mark}${fitNudge(order.id, s.kaori, s.koku, fit.mark)}　📊 ${sessionScore}pt`;
+      statusSake.textContent = `${b.adj}${b.grade}${nigoriTxt}`;
+      const nudge = fitNudge(order.id, s.kaori, s.koku, fit.mark).trim().replace(/[（）]/g, "");
+      statusFit.textContent = `${fit.mark} ${nudge}`;
+      statusFit.className = `status-fit ${fit.mark === "◎" ? "fit-maru2" : fit.mark === "○" ? "fit-maru" : "fit-sanka"}`;
     }
     // 予想スコア：今しぼったら何pt確定するか（タイミング倍率 × 注文倍率）
     const tm = timingMult(ferment);
