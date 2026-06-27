@@ -64,7 +64,7 @@
   const BAL_DIFF  = [10, 8, 7, 6, 5];     // balance：このネット差以内なら◎（格で狭く）
   const OK_MARGIN_DIFF = 5;               // この差ぶん手前なら○
 
-  const CELLAR_KEY = "kamoshitepon_tank_cellar_v1";
+  const CELLAR_KEY = "kamoshitepon_tank2_cellar_v1";
   const CELLAR_MAX = 60;
 
   const RANKS = [
@@ -78,71 +78,26 @@
     "◎": "これこれ！こういうのが飲みたかった！", "○": "うん、なかなかいけるね。", "△": "ふむ、これはこれで乙なもんだ。",
   };
 
-  // 全47都道府県（ステージ）。順番自由・地図から選ぶ
-  // n=県名, aim=目指す味, style=味の一言, theme=地の色, names=ご当地銘柄
+  // 全国10地方（ステージ）。順番自由・地図から選ぶ
+  // n=地方名, aim=目指す味, style=味の一言, theme=地の色, names=ご当地銘柄（架空・商標回避）
   const PREFECTURES = [
-    { n: "北海道", aim: "balance", style: "大地の旨み", theme: "snow", names: ["大地", "流氷"] },
-    { n: "青森", aim: "kaori", style: "りんごの華", theme: "blossom", names: ["りんご花", "八甲田"] },
-    { n: "岩手", aim: "koku", style: "南部の厚み", theme: "mountain", names: ["南部の里", "北上"] },
-    { n: "宮城", aim: "balance", style: "潮のうまみ", theme: "sea", names: ["伊達の蔵", "松島"] },
-    { n: "秋田", aim: "kaori", style: "すっきり淡麗", theme: "snow", names: ["美郷", "雪きらり"] },
-    { n: "山形", aim: "kaori", style: "フルーティ", theme: "blossom", names: ["さくらんぼ", "蔵王"] },
-    { n: "福島", aim: "balance", style: "桃のふくらみ", theme: "blossom", names: ["桃源", "会津路"] },
-    { n: "茨城", aim: "koku", style: "骨太", theme: "field", names: ["筑波おろし", "常陸野"] },
-    { n: "栃木", aim: "kaori", style: "苺の香", theme: "blossom", names: ["苺の里", "日光"] },
-    { n: "群馬", aim: "koku", style: "温泉仕込み", theme: "mountain", names: ["草津の湯", "赤城"] },
-    { n: "埼玉", aim: "balance", style: "武蔵野", theme: "field", names: ["川越", "武蔵野"] },
-    { n: "千葉", aim: "koku", style: "香ばし", theme: "sea", names: ["房総", "九十九里"] },
-    { n: "東京", aim: "kaori", style: "粋", theme: "city", names: ["江戸前", "隅田"] },
-    { n: "神奈川", aim: "balance", style: "潮風", theme: "sea", names: ["湘南", "箱根路"] },
-    { n: "新潟", aim: "balance", style: "淡麗辛口", theme: "snow", names: ["雪国", "越路"] },
-    { n: "富山", aim: "balance", style: "雪解けの清", theme: "snow", names: ["立山", "雪解け"] },
-    { n: "石川", aim: "koku", style: "加賀の格", theme: "sea", names: ["加賀の金", "兼六"] },
-    { n: "福井", aim: "koku", style: "越前の厚み", theme: "sea", names: ["越前", "永平寺"] },
-    { n: "山梨", aim: "kaori", style: "ぶどうの香", theme: "blossom", names: ["ぶどう坂", "富士みち"] },
-    { n: "長野", aim: "kaori", style: "高原の澄み", theme: "mountain", names: ["アルプス", "信濃路"] },
-    { n: "岐阜", aim: "balance", style: "清流", theme: "mountain", names: ["清流", "飛騨路"] },
-    { n: "静岡", aim: "kaori", style: "メロン香", theme: "sea", names: ["茶の香", "富士見"] },
-    { n: "愛知", aim: "koku", style: "赤味噌のコク", theme: "city", names: ["尾張", "三河"] },
-    { n: "三重", aim: "kaori", style: "伊勢の雅", theme: "field", names: ["伊勢路", "五十鈴"] },
-    { n: "滋賀", aim: "koku", style: "湖のうまみ", theme: "field", names: ["湖の里", "比叡おろし"] },
-    { n: "京都", aim: "kaori", style: "やわらか", theme: "city", names: ["雅", "伏見の水"] },
-    { n: "大阪", aim: "balance", style: "浪花のにぎわい", theme: "city", names: ["浪花", "通天"] },
-    { n: "兵庫", aim: "koku", style: "芳醇旨口", theme: "field", names: ["山田の穂", "灘の蔵"] },
-    { n: "奈良", aim: "koku", style: "古都の重み", theme: "mountain", names: ["古都", "吉野"] },
-    { n: "和歌山", aim: "balance", style: "紀州の澄み", theme: "sea", names: ["紀州", "熊野路"] },
-    { n: "鳥取", aim: "koku", style: "砂丘の力", theme: "sea", names: ["砂丘", "大山おろし"] },
-    { n: "島根", aim: "koku", style: "神話の厚み", theme: "mountain", names: ["出雲", "神在"] },
-    { n: "岡山", aim: "koku", style: "白桃のふくらみ", theme: "blossom", names: ["白桃", "吉備路"] },
-    { n: "広島", aim: "kaori", style: "やわ口", theme: "sea", names: ["瀬戸の風", "安芸"] },
-    { n: "山口", aim: "kaori", style: "関の華", theme: "sea", names: ["関の潮", "錦帯"] },
-    { n: "徳島", aim: "koku", style: "渦の力", theme: "sea", names: ["渦潮", "阿波おどり"] },
-    { n: "香川", aim: "balance", style: "讃岐の凪", theme: "sea", names: ["讃岐", "オリーブ凪"] },
-    { n: "愛媛", aim: "balance", style: "橘の香", theme: "south", names: ["伊予の橘", "道後"] },
-    { n: "高知", aim: "balance", style: "土佐のキレ", theme: "sea", names: ["土佐の波", "四万十"] },
-    { n: "福岡", aim: "balance", style: "博多の甘", theme: "south", names: ["筑紫", "博多"] },
-    { n: "佐賀", aim: "koku", style: "有田の濃醇", theme: "field", names: ["有田", "嬉野"] },
-    { n: "長崎", aim: "kaori", style: "出島の華", theme: "sea", names: ["出島", "五島"] },
-    { n: "熊本", aim: "kaori", style: "火の国の熱", theme: "south", names: ["火の国", "阿蘇"] },
-    { n: "大分", aim: "balance", style: "かぼすの爽", theme: "mountain", names: ["別府", "かぼす"] },
-    { n: "宮崎", aim: "kaori", style: "南国の甘香", theme: "south", names: ["日向", "マンゴー"] },
-    { n: "鹿児島", aim: "koku", style: "薩摩の豪快", theme: "south", names: ["桜島", "薩摩"] },
-    { n: "沖縄", aim: "balance", style: "島の風", theme: "south", names: ["島風", "さんご礁"] },
+    { n: "北海道", aim: "balance", style: "大地の旨み", theme: "snow",    names: ["大地", "流氷"] },
+    { n: "東北",   aim: "kaori",   style: "雪国の吟醸", theme: "snow",    names: ["雪あかり", "みちのく"] },
+    { n: "関東",   aim: "koku",    style: "下総の濃口", theme: "sea",     names: ["江戸前", "野田路"] },
+    { n: "甲信",   aim: "kaori",   style: "ぶどうと果実", theme: "blossom", names: ["甲州路", "信濃路"] },
+    { n: "北陸",   aim: "balance", style: "淡麗辛口",   theme: "snow",    names: ["越路", "白山"] },
+    { n: "東海",   aim: "koku",    style: "八丁の濃醇", theme: "city",    names: ["尾張", "三河"] },
+    { n: "近畿",   aim: "koku",    style: "灘の男酒",   theme: "field",   names: ["灘", "伏見"] },
+    { n: "中国",   aim: "kaori",   style: "瀬戸内の吟醸", theme: "sea",    names: ["安芸", "錦帯"] },
+    { n: "四国",   aim: "balance", style: "土佐のキレ", theme: "sea",     names: ["土佐", "讃岐"] },
+    { n: "九州",   aim: "koku",    style: "薩摩の豪快", theme: "south",   names: ["薩摩", "火の国"] },
   ];
   const prefName = (i) => PREFECTURES[i].n;
-  const REGIONS = [
-    { name: "北海道", indices: [0] },
-    { name: "東北", indices: [1, 2, 3, 4, 5, 6] },
-    { name: "関東", indices: [7, 8, 9, 10, 11, 12, 13] },
-    { name: "中部", indices: [14, 15, 16, 17, 18, 19, 20, 21, 22] },
-    { name: "近畿", indices: [23, 24, 25, 26, 27, 28, 29] },
-    { name: "中国", indices: [30, 31, 32, 33, 34] },
-    { name: "四国", indices: [35, 36, 37, 38] },
-    { name: "九州・沖縄", indices: [39, 40, 41, 42, 43, 44, 45, 46] },
-  ];
+  // 地図の並び（日本地図っぽく：北海道／東北・関東・甲信／北陸・東海・近畿／中国・四国・九州）
+  const MAP_ROWS = [[0], [1, 2, 3], [4, 5, 6], [7, 8, 9]];
 
   // 進捗：県ごとの蔵の格＋現在いる県（localStorage）
-  const PROGRESS_KEY = "kamoshitepon_tank_progress_v1";
+  const PROGRESS_KEY = "kamoshitepon_tank2_progress_v1";
   function loadProgress() {
     try {
       const p = JSON.parse(localStorage.getItem(PROGRESS_KEY));
@@ -163,6 +118,7 @@
   let board = [];
   let ferment = 0;
   let nigori = 0;
+  let fermentSkip = 0; // まとめのごほうび：次の発酵+3を何手ぶんスキップするか（バーは後退しない）
   let order = null;
   let selected = null;
   let busy = false;
@@ -364,7 +320,7 @@
     else if (ferment >= 40) { fillCls = "s-ready"; label = "🍶 しぼる"; }
     else { fillCls = "s-young"; label = "🍶 しぼる（まだあまい）"; }
     shiboruFill.className = `shiboru-fill ${fillCls}`;
-    shiboruLabel.textContent = label;
+    shiboruLabel.textContent = fermentSkip > 0 ? `${label}　⏸️ひと休み×${fermentSkip}` : label;
     shiboruBtn.classList.toggle("peak-now", ferment >= PEAK_LO && ferment < PEAK_HI);
   }
 
@@ -447,6 +403,8 @@
   function renderOrder() { orderEl.textContent = `📜 ${order.who}：${order.wish}（${order.hint}）`; }
 
   function advanceFerment() {
+    // まとめのごほうびが溜まっていれば、この一手は発酵を進めない（バーは後退しない＝ひと休み）
+    if (fermentSkip > 0) { fermentSkip--; toast("⏸️ 発酵はひと休み（まとめのごほうび）", 1); return; }
     const wasBelowPeak = ferment < PEAK_LO;
     ferment += FERMENT_PER_MOVE;
     if (ferment > 100) ferment = 100;
@@ -517,7 +475,11 @@
   function onCellDown(e) {
     if (busy || gameOver) return;
     const r = Number(e.currentTarget.dataset.r), c = Number(e.currentTarget.dataset.c);
-    if (kaiireMode) { setKaiireMode(false); kaiireRow(r); return; }
+    if (kaiireMode) {
+      const t = board[r][c];
+      if (!t || t.kind !== "ing") { setKaiireMode(false); render(); return; }
+      setKaiireMode(false); kaiireType(t.type); return;
+    }
     if (!board[r][c]) return;
     dragStart = { r, c, x: e.clientX, y: e.clientY };
     swipeFired = false;
@@ -634,15 +596,13 @@
     const tb = board[b.r][b.c];
     busy = true;
     const newValue = tb.value * 2;
-    // まとめると発酵が少し冷える（時間延長）：大きくまとめるほど冷却が大きい。
-    // 1手＝発酵+3% に対して効きすぎないよう緩めに：2/4/8→-1% ／ 16/32→-2% ／ 64/128→-3% …最大-5%
-    const coolingEffect = Math.max(1, Math.min(5, Math.floor(Math.log2(newValue) / 2)));
-    ferment = Math.max(0, ferment - coolingEffect);
+    // まとめると、次の1手ぶん発酵がひと休み（発酵バーは後退しない＝時間を稼げる）
+    fermentSkip += 1;
     render({ [`${a.r},${a.c}`]: "pop" }); await sleep(160);
     board[a.r][a.c] = null;
     board[b.r][b.c] = makePanel(tb.axis, newValue);
     const juku = jukuseiNameOf(newValue);
-    toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}（発酵度 -${coolingEffect}%）`);
+    toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}（⏸️発酵ひと休み）`);
     render({ [`${b.r},${b.c}`]: "grow" }); await sleep(220);
     applyGravity();
     render(refill()); await sleep(160);
@@ -713,25 +673,25 @@
     if (busy || gameOver) return;
     if (kaiireLeft <= 0) { toast("櫂入れはもうないよ"); return; }
     setKaiireMode(!kaiireMode);
-    if (kaiireMode) toast("よこ一列をタップして櫂入れ！", 1);
+    if (kaiireMode) toast("消したい素材をタップ！（同じ種類が全部消える）", 1);
   }
-  async function kaiireRow(r) {
+  async function kaiireType(typeId) {
     const cells = [];
-    for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const t = board[r][c];
-      if (t && t.kind === "ing") cells.push({ r, c });
+      if (t && t.kind === "ing" && t.type === typeId) cells.push({ r, c });
     }
-    if (cells.length === 0) { toast("この列には素材がないよ"); return; }
+    if (cells.length === 0) { toast("その素材はタンクにないよ"); return; }
     busy = true;
     kaiireLeft--;
     advanceFerment();
-    // よこ一列の素材をさらって消す（お掃除・立て直し。うまみは増えない）
     const popClasses = {};
     for (const p of cells) popClasses[`${p.r},${p.c}`] = "pop";
     render(popClasses);
     await sleep(220);
     for (const p of cells) board[p.r][p.c] = null;
-    toast("🥢 櫂入れ！ よこ一列をきれいにした");
+    const def = TYPES[typeId];
+    toast(`🥢 櫂入れ！ ${def.emoji}${def.name}×${cells.length}を消した`);
     applyGravity();
     render(refill());
     await sleep(200);
@@ -817,10 +777,10 @@
     if (conqueredNow) {
       nextLine = allDone
         ? "🎌🎌 これで全国統一たっせい！おめでとう！"
-        : `🎌 ${pref}を制覇！ 地図から次の県をえらぼう（蔵の格 +${gain}）`;
+        : `🎌 ${pref}を制覇！ 地図から次の地方をえらぼう（蔵の格 +${gain}）`;
       unlock = `🗾 全国 ${conqueredCount()}/${PREFECTURES.length} 制覇`;
     } else if (rankIdx >= RANKS.length - 1) {
-      nextLine = `${pref} は制覇ずみ。べつの県も育てよう（蔵の格 +${gain}）`;
+      nextLine = `${pref} は制覇ずみ。べつの地方も育てよう（蔵の格 +${gain}）`;
     } else {
       nextLine = `あと ${next.min - prestige} で ${next.name}！　（蔵の格 +${gain}）`;
       if (rankedUp) unlock = unlockText(rankIdx, tankGrows);
@@ -856,11 +816,9 @@
     document.getElementById("mapCount").textContent = `全国 ${conqueredCount()} / ${PREFECTURES.length} 制覇`;
     const wrap = document.getElementById("mapRegions");
     wrap.innerHTML = "";
-    for (const reg of REGIONS) {
-      const sec = document.createElement("div"); sec.className = "map-region";
-      const h = document.createElement("div"); h.className = "map-region-name"; h.textContent = reg.name; sec.appendChild(h);
-      const row = document.createElement("div"); row.className = "map-chips";
-      for (const i of reg.indices) {
+    for (const rowIndices of MAP_ROWS) {
+      const row = document.createElement("div"); row.className = "map-chips map-row";
+      for (const i of rowIndices) {
         const chip = document.createElement("button"); chip.className = "map-chip";
         const conquered = isConquered(i);
         const rank = getRankIdx(prestigeOf(i));
@@ -871,7 +829,7 @@
         chip.addEventListener("click", () => selectPref(i));
         row.appendChild(chip);
       }
-      sec.appendChild(row); wrap.appendChild(sec);
+      wrap.appendChild(row);
     }
   }
 
@@ -896,7 +854,7 @@
       subtitleEl.textContent =
         `🗾 ${prefName(curIdx())}・${KURA_EMOJI[rankIdx]} ${RANKS[rankIdx].name}（全国 ${conqueredCount()}/${PREFECTURES.length}）`;
     }
-    ferment = 0; nigori = 0; selected = null; gameOver = false; busy = false;
+    ferment = 0; nigori = 0; fermentSkip = 0; selected = null; gameOver = false; busy = false;
     kaiireLeft = KAIIRE_CHARGES; setKaiireMode(false);
     initBoard();
     drawOrder();

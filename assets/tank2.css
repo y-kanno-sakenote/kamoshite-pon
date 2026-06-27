@@ -46,6 +46,10 @@
 /* ドラッグ／スワイプ操作中にページがスクロールしないように */
 .board { touch-action: none; }
 
+/* 地図：見出しなしで日本地図っぽく中央寄せの段組み */
+.map-regions { gap: 10px; align-items: center; }
+.map-row { justify-content: center; }
+
 /* ---------- パネルの数字を見やすく（数字ごとの濃淡＋大きい数字＋まとめ候補ハイライト） ---------- */
 /* 数字ごとに背景の濃淡（軸の色系統の中で：かおり＝桃系／こく＝緑系）。絵文字で軸は判別できる */
 .cell.panel-kaori.pv-0 { background: #fde3ed; }
