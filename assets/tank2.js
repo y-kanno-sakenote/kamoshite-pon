@@ -898,7 +898,7 @@
     infoPref.textContent     = prefName(curIdx());
     infoRank.textContent     = `${KURA_EMOJI[rankIdx]} ${RANKS[rankIdx].name}`;
     infoRankFill.style.width = `${pct}%`;
-    infoCount.textContent    = `${conqueredCount()}/${PREFECTURES.length}`;
+    infoCount.textContent    = `全国 ${conqueredCount()}/${PREFECTURES.length}`;
 
     ferment = 0; nigori = 0; fermentSkip = 0; sessionScore = 0; selected = null; gameOver = false; busy = false;
     kaiireLeft = KAIIRE_CHARGES; setKaiireMode(false);
