@@ -67,13 +67,29 @@
 .info-aim-main { font-size: 14px; font-weight: bold; color: var(--ai-dark); line-height: 1.3; }
 .info-aim-sub  { font-size: 11px; color: var(--ai-dark); opacity: 0.55; margin-top: 3px; }
 
+/* ステータスカード ＋ 櫂入れボタンを横並び */
+.action-row {
+  display: flex; align-items: stretch; gap: 8px; margin-bottom: 6px;
+}
+.action-row .status-card {
+  flex: 1; min-width: 0; margin-bottom: 0;
+  flex-direction: column; align-items: flex-start; justify-content: center;
+}
+.action-row .status-sake { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+.action-row .status-fit  { font-size: 12px; margin-top: 2px; }
+.action-row .kaiire-btn  {
+  flex: 0 0 auto; white-space: nowrap; margin-bottom: 0;
+  width: auto; max-width: none;
+  font-size: 0.78rem; padding: 0 14px;
+}
+
 /* 酒の状態 ＋ オーダー適合カード */
 .status-card {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--kinari); border-radius: 12px;
   padding: 10px 14px; margin-bottom: 6px; gap: 10px;
 }
-.status-sake { font-size: 15px; font-weight: bold; color: var(--ai-dark); }
+.status-sake { font-size: 14px; font-weight: bold; color: var(--ai-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status-fit  { font-size: 14px; font-weight: bold; white-space: nowrap; }
 .status-fit.fit-maru2 { color: var(--good); }
 .status-fit.fit-maru  { color: #c07800; }
