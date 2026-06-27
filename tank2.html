@@ -11,11 +11,23 @@
   <main class="wrap">
     <header class="header">
       <h1 class="title">かもしてぽん！<span class="dev-badge">ゲージ版</span></h1>
-      <p class="subtitle">🛢️タンクモード：シーソーゲージで香り↑とこく↓の偏りを見る。</p>
     </header>
 
-    <!-- 注文（今回つくってほしい酒） -->
-    <section class="order-line" id="orderLine"></section>
+    <!-- 場所・ランク（左）＋ねらい（右）の2行カード -->
+    <section class="info-bar">
+      <div class="info-loc">
+        <span class="info-pref" id="infoPref"></span>
+        <span class="info-rank" id="infoRank"></span>
+        <div class="info-rank-wrap">
+          <div class="info-rank-bar"><div class="info-rank-fill" id="infoRankFill"></div></div>
+          <span class="info-count" id="infoCount"></span>
+        </div>
+      </div>
+      <div class="info-aim">
+        <span class="info-aim-main" id="infoAimMain"></span>
+        <span class="info-aim-sub" id="infoAimSub"></span>
+      </div>
+    </section>
 
     <section class="play-area">
       <!-- シーソーゲージ：香り(上)↔こく(下)の偏り。緑の帯がねらいゾーン -->

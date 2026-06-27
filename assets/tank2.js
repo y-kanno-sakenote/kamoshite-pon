@@ -143,14 +143,18 @@
 
   // ---------- DOM ----------
   const boardEl = document.getElementById("board");
-  const orderEl = document.getElementById("orderLine");
   const statusEl = document.getElementById("statusLine");
   const toastLayer = document.getElementById("toastLayer");
   const shiboruBtn = document.getElementById("shiboruBtn");
   const shiboruFill = document.getElementById("shiboruFill");
   const shiboruLabel = document.getElementById("shiboruLabel");
   const kaiireBtn = document.getElementById("kaiireBtn");
-  const subtitleEl = document.querySelector(".subtitle");
+  const infoPref     = document.getElementById("infoPref");
+  const infoRank     = document.getElementById("infoRank");
+  const infoRankFill = document.getElementById("infoRankFill");
+  const infoCount    = document.getElementById("infoCount");
+  const infoAimMain  = document.getElementById("infoAimMain");
+  const infoAimSub   = document.getElementById("infoAimSub");
   const helpModal = document.getElementById("helpModal");
   const resultModal = document.getElementById("resultModal");
   const mapModal = document.getElementById("mapModal");
@@ -427,7 +431,15 @@
     const tip = traveler ? 90 : 50 + rankIdx * 20; // 蔵が有名になるほど看板酒に高値
     order = { id, who, wish: `${wishCore}がほしい`, hint, tip };
   }
-  function renderOrder() { orderEl.textContent = `📜 ${order.who}：${order.wish}（${order.hint}）`; }
+  function aimText(aimId) {
+    if (aimId === "kaori") return "🌸 香りを高く仕上げて";
+    if (aimId === "koku")  return "🍵 こくを深く仕上げて";
+    return "⚖️ 香りとこくをバランスよく";
+  }
+  function renderOrder() {
+    infoAimMain.textContent = aimText(order.id);
+    infoAimSub.textContent  = `${order.who}のオーダー`;
+  }
 
   function advanceFerment() {
     // まとめのごほうびが溜まっていれば、この一手は発酵を進めない（バーは後退しない＝ひと休み）
@@ -880,10 +892,14 @@
     const rankIdx = getRankIdx(loadPrestige());
     ROWS = ROWS_BY_RANK[rankIdx];
     boardEl.className = `board kura-rank-${rankIdx}`;
-    if (subtitleEl) {
-      subtitleEl.textContent =
-        `🗾 ${prefName(curIdx())}・${KURA_EMOJI[rankIdx]} ${RANKS[rankIdx].name}（全国 ${conqueredCount()}/${PREFECTURES.length}）`;
-    }
+    const prestige = loadPrestige();
+    const nextRank = RANKS[rankIdx + 1];
+    const pct = nextRank ? Math.min(100, Math.round(((prestige - RANKS[rankIdx].min) / (nextRank.min - RANKS[rankIdx].min)) * 100)) : 100;
+    infoPref.textContent     = prefName(curIdx());
+    infoRank.textContent     = `${KURA_EMOJI[rankIdx]} ${RANKS[rankIdx].name}`;
+    infoRankFill.style.width = `${pct}%`;
+    infoCount.textContent    = `${conqueredCount()}/${PREFECTURES.length}`;
+
     ferment = 0; nigori = 0; fermentSkip = 0; sessionScore = 0; selected = null; gameOver = false; busy = false;
     kaiireLeft = KAIIRE_CHARGES; setKaiireMode(false);
     initBoard();
