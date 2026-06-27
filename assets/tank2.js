@@ -52,6 +52,17 @@
     { min: 16, bonus: 15, name: "よく熟成" },
     { min: 8,  bonus: 6,  name: "熟成のきざし" },
   ];
+  // スコアリング（積み上げ点 × タイミング倍率 × 注文倍率）
+  // 積み上げ点はゲーム中に増え、しぼった瞬間に倍率が掛かって確定する
+  const SCORE_MATCH_PER_CELL = 2;   // マッチ：1セルあたりの基礎点（コンボ番号も掛かる）
+  const SCORE_MERGE_PER_VALUE = 1;  // パネルまとめ：倍になった値 × これ
+  const TIMING_MULTS = [
+    { lo: 68, hi: 82, m: 2.0 },          // ど真ん中ピーク
+    { lo: PEAK_LO, hi: PEAK_HI, m: 1.4 }, // ピーク帯
+    { lo: 40, hi: 100, m: 0.8 },          // のみごろ〜過じゅく
+  ];
+  const TIMING_MULT_MIN = 0.4;           // あまざけ・お酢
+  const SCORE_ORDER_MULT = { "◎": 1.5, "○": 1.0, "△": 0.5 };
   // B：テーマ色（盤面の地＝その土地の水の色）
   const THEME_COLORS = {
     snow: "#eef3f8", sea: "#e3f0f7", mountain: "#eef4e6",
@@ -68,8 +79,11 @@
   const CELLAR_MAX = 60;
 
   const RANKS = [
-    { min: 0, name: "みならい蔵" }, { min: 150, name: "蔵人の蔵" }, { min: 400, name: "銘酒蔵" },
-    { min: 800, name: "名門蔵" }, { min: 1500, name: "伝説の蔵" },
+    { min: 0,    name: "みならい蔵" },
+    { min: 300,  name: "蔵人の蔵" },
+    { min: 900,  name: "銘酒蔵" },
+    { min: 1800, name: "名門蔵" },
+    { min: 3000, name: "伝説の蔵" },
   ];
   const ROWS_BY_RANK = [6, 6, 7, 7, 8];
   const KURA_EMOJI = ["🛖", "🏚️", "🏠", "🏯", "🏯"];
@@ -119,6 +133,7 @@
   let ferment = 0;
   let nigori = 0;
   let fermentSkip = 0; // まとめのごほうび：次の発酵+3を何手ぶんスキップするか（バーは後退しない）
+  let sessionScore = 0; // 今回の仕込みで積み上げた点（しぼり時に倍率が掛かって確定）
   let order = null;
   let selected = null;
   let busy = false;
@@ -306,12 +321,18 @@
     // 盤面の地＝その県のテーマ色（B）。バランスは数値で見えるので地の色はご当地色に
     boardEl.style.background = THEME_COLORS[PREFECTURES[curIdx()].theme] || "transparent";
     // 仕上がり予報：今しぼったらどんな酒で、注文に◎○△か＋どっちに寄せるか
+    let fitMark = "△";
     if (order) {
       const rankIdx = getRankIdx(loadPrestige());
       const fit = evalFit(order.id, s.kaori, s.koku, rankIdx);
+      fitMark = fit.mark;
       const nigoriTxt = nigori > 0 ? `（にごり -${nigori}）` : "";
-      statusEl.textContent = `いまの一本：${b.adj}${b.grade}${nigoriTxt}　ご注文 ${fit.mark}${fitNudge(order.id, s.kaori, s.koku, fit.mark)}`;
+      statusEl.textContent = `いまの一本：${b.adj}${b.grade}${nigoriTxt}　ご注文 ${fit.mark}${fitNudge(order.id, s.kaori, s.koku, fit.mark)}　📊 ${sessionScore}pt`;
     }
+    // 予想スコア：今しぼったら何pt確定するか（タイミング倍率 × 注文倍率）
+    const tm = timingMult(ferment);
+    const om = SCORE_ORDER_MULT[fitMark];
+    const projected = Math.round((sessionScore + b.juku.bonus) * tm * om);
     // しぼるボタン＝発酵バー：満ち具合（width）と色・言葉で進捗を伝える
     shiboruFill.style.width = `${Math.min(100, ferment)}%`;
     let fillCls, label;
@@ -320,7 +341,8 @@
     else if (ferment >= 40) { fillCls = "s-ready"; label = "🍶 しぼる"; }
     else { fillCls = "s-young"; label = "🍶 しぼる（まだあまい）"; }
     shiboruFill.className = `shiboru-fill ${fillCls}`;
-    shiboruLabel.textContent = fermentSkip > 0 ? `${label}　⏸️ひと休み×${fermentSkip}` : label;
+    const skipTxt = fermentSkip > 0 ? `　⏸️×${fermentSkip}` : "";
+    shiboruLabel.textContent = `${label}${skipTxt}　→ ${projected}pt`;
     shiboruBtn.classList.toggle("peak-now", ferment >= PEAK_LO && ferment < PEAK_HI);
   }
 
@@ -355,6 +377,11 @@
     else if (aimId === "koku") push = "もっとこくを";
     else push = ka > ko ? "こくを足して" : "香りを足して";
     return `（${push}）`;
+  }
+  // タイミング倍率：発酵度がピーク中央（75前後）に近いほど高い
+  function timingMult(f) {
+    for (const { lo, hi, m } of TIMING_MULTS) if (f >= lo && f <= hi) return m;
+    return TIMING_MULT_MIN;
   }
   // 評価：注文の軸への「ネット偏り量」× 蔵の格（熟練カーブ）で ◎○△。ゲージの帯と完全一致。
   function evalFit(aimId, ka, ko, rankIdx) {
@@ -555,8 +582,10 @@
       for (const g of groups) for (const p of g.cells) board[p.r][p.c] = null;
       // その場でパネル生成（軸分離はまだしない）
       for (const s of spawns) { const p = makePanel(s.axis, s.value); p.fresh = true; board[s.r][s.c] = p; }
+      const matchPts = groups.reduce((sum, g) => sum + g.cells.length * SCORE_MATCH_PER_CELL * combo, 0);
+      sessionScore += matchPts;
       const def = spawns.length ? AXIS_DEF[spawns[0].axis] : null;
-      if (def) toast(combo >= 2 ? `れんぞく x${combo}！うまみパネル！` : `${def.emoji}${def.name}パネルが生まれた！`);
+      if (def) toast(combo >= 2 ? `れんぞく x${combo}！うまみパネル！ +${matchPts}pt` : `${def.emoji}${def.name}パネルが生まれた！ +${matchPts}pt`);
       collapseMiddle();
       // 生成パネルの「生まれた」演出を、落下後の位置に付ける
       const growClasses = {};
@@ -596,13 +625,15 @@
     const tb = board[b.r][b.c];
     busy = true;
     const newValue = tb.value * 2;
+    const mergePts = newValue * SCORE_MERGE_PER_VALUE;
+    sessionScore += mergePts;
     // まとめると、次の1手ぶん発酵がひと休み（発酵バーは後退しない＝時間を稼げる）
     fermentSkip += 1;
     render({ [`${a.r},${a.c}`]: "pop" }); await sleep(160);
     board[a.r][a.c] = null;
     board[b.r][b.c] = makePanel(tb.axis, newValue);
     const juku = jukuseiNameOf(newValue);
-    toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}（⏸️発酵ひと休み）`);
+    toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}（+${mergePts}pt・⏸️発酵ひと休み）`);
     render({ [`${b.r},${b.c}`]: "grow" }); await sleep(220);
     applyGravity();
     render(refill()); await sleep(160);
@@ -750,9 +781,8 @@
     if (cellar.length > CELLAR_MAX) cellar.length = CELLAR_MAX;
     saveCellar(cellar);
 
-    // この県の蔵の格を積み上げる
-    const tip = fit.mark === "◎" ? order.tip : fit.mark === "○" ? Math.round(order.tip * 0.4) : 0;
-    const gain = total + tip;
+    // この県の蔵の格を積み上げる（積み上げ点 × タイミング倍率 × 注文倍率）
+    const gain = Math.round((sessionScore + juku.bonus) * timingMult(ferment) * SCORE_ORDER_MULT[fit.mark]);
     const prestige = before + gain;
     progress.prestige[curIdx()] = prestige;
     saveProgress();
@@ -771,7 +801,7 @@
     document.getElementById("resultRank").textContent = `${adj}${grade}『${name}』`;
     document.getElementById("resultReaction").textContent = `🗣️ ${order.who}「${REACTIONS[fit.mark]}」`;
     document.getElementById("resultOrders").textContent =
-      `${pref}｜かおり ${s.kaori}／こく ${s.koku}${nigori ? `（にごり -${nigori}）` : ""}${juku.name ? `・✨${juku.name} +${juku.bonus}` : ""}・${st.name}でしぼり`;
+      `📊 ${gain}pt（×${timingMult(ferment).toFixed(1)} × ${SCORE_ORDER_MULT[fit.mark]}）　${pref}｜${st.name}でしぼり${juku.name ? `・✨${juku.name}` : ""}`;
 
     let nextLine, unlock = "";
     if (conqueredNow) {
@@ -854,7 +884,7 @@
       subtitleEl.textContent =
         `🗾 ${prefName(curIdx())}・${KURA_EMOJI[rankIdx]} ${RANKS[rankIdx].name}（全国 ${conqueredCount()}/${PREFECTURES.length}）`;
     }
-    ferment = 0; nigori = 0; fermentSkip = 0; selected = null; gameOver = false; busy = false;
+    ferment = 0; nigori = 0; fermentSkip = 0; sessionScore = 0; selected = null; gameOver = false; busy = false;
     kaiireLeft = KAIIRE_CHARGES; setKaiireMode(false);
     initBoard();
     drawOrder();
