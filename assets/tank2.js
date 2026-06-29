@@ -32,6 +32,7 @@
   const FERMENT_PER_MOVE = 3;
   const NIGORI_PER_OVERRIPE = 2;
   const KAIIRE_CHARGES = 2; // 櫂入れ（よこ一列さらい）の回数／1仕込み
+  const FERMENT_SKIP_MAX = 2; // まとめのごほうび（発酵ひと休み）の貯金上限。溜めても凍結はできない
 
   const STAGES = [
     { min: 0,   name: "あまざけ", mult: 0.6 },
@@ -654,13 +655,16 @@
     const newValue = tb.value * 2;
     const mergePts = newValue * SCORE_MERGE_PER_VALUE;
     sessionScore += mergePts;
-    // まとめると、次の1手ぶん発酵がひと休み（発酵バーは後退しない＝時間を稼げる）
-    fermentSkip += 1;
+    // まとめると、次の1手ぶん発酵がひと休み（発酵バーは後退しない＝時間を稼げる）。
+    // ただし貯金には上限あり：溜めすぎて発酵を凍結はできない（見きわめの緊張感を守る）
+    const restGained = fermentSkip < FERMENT_SKIP_MAX;
+    if (restGained) fermentSkip += 1;
     render({ [`${a.r},${a.c}`]: "pop" }); await sleep(160);
     board[a.r][a.c] = null;
     board[b.r][b.c] = makePanel(tb.axis, newValue);
     const juku = jukuseiNameOf(newValue);
-    toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}（+${mergePts}pt・⏸️発酵ひと休み）`);
+    const restTxt = restGained ? "・⏸️発酵ひと休み" : "・⏸️は満タン";
+    toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}（+${mergePts}pt${restTxt}）`);
     render({ [`${b.r},${b.c}`]: "grow" }); await sleep(220);
     applyGravity();
     render(refill()); await sleep(160);
@@ -956,7 +960,7 @@
     setFerment: (f) => { ferment = f; render(); },
     setPrefPrestige: (idx, p) => { progress.current = idx; progress.prestige[idx] = p; saveProgress(); },
     openMap, selectPref,
-    state: () => ({ ferment, nigori, order, busy, gameOver, sums: boardSums(), preview: brewPreview(), rankIdx: getRankIdx(loadPrestige()), ROWS, pref: prefName(curIdx()), prefIdx: curIdx(), aim: PREFECTURES[curIdx()].aim, conquered: conqueredCount() }),
+    state: () => ({ ferment, nigori, fermentSkip, order, busy, gameOver, sums: boardSums(), preview: brewPreview(), rankIdx: getRankIdx(loadPrestige()), ROWS, pref: prefName(curIdx()), prefIdx: curIdx(), aim: PREFECTURES[curIdx()].aim, conquered: conqueredCount() }),
     shiboru: () => shiboru(false),
     restart: startGame,
   };
