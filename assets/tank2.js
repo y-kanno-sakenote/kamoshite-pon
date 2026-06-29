@@ -348,7 +348,10 @@
     else { fillCls = "s-young"; label = "🍶 しぼる（まだあまい）"; }
     shiboruFill.className = `shiboru-fill ${fillCls}`;
     const skipTxt = fermentSkip > 0 ? `　⏸️×${fermentSkip}` : "";
-    shiboruLabel.textContent = `${label}${skipTxt}　→ ${projected}pt`;
+    const peakMovesLeft = (ferment >= PEAK_LO && ferment < PEAK_HI)
+      ? Math.max(1, Math.floor((PEAK_HI - ferment) / FERMENT_PER_MOVE)) : 0;
+    const peakTxt = peakMovesLeft > 0 ? `　あと${peakMovesLeft}手` : "";
+    shiboruLabel.textContent = `${label}${peakTxt}${skipTxt}　→ ${projected}pt`;
     shiboruBtn.classList.toggle("peak-now", ferment >= PEAK_LO && ferment < PEAK_HI);
   }
 
@@ -388,6 +391,18 @@
   function timingMult(f) {
     for (const { lo, hi, m } of TIMING_MULTS) if (f >= lo && f <= hi) return m;
     return TIMING_MULT_MIN;
+  }
+  function timingLabel(f) {
+    if (f >= 68 && f <= 82) return "ど真ん中ピーク！";
+    if (f >= PEAK_LO && f < PEAK_HI) return "ピークでしぼった！";
+    if (f >= 40 && f < PEAK_HI) return "のみごろでしぼった";
+    if (f >= PEAK_HI) return "過じゅくでしぼった…";
+    return "まだあまかった…";
+  }
+  function orderLabel(mark) {
+    if (mark === "◎") return "◎ ご注文ばっちり！";
+    if (mark === "○") return "○ おしい！あと少し";
+    return "△ 方向がちがった…";
   }
   // 評価：注文の軸への「ネット偏り量」× 蔵の格（熟練カーブ）で ◎○△。ゲージの帯と完全一致。
   function evalFit(aimId, ka, ko, rankIdx) {
@@ -814,8 +829,9 @@
     document.getElementById("resultScore").textContent = fit.mark;
     document.getElementById("resultRank").textContent = `${adj}${grade}『${name}』`;
     document.getElementById("resultReaction").textContent = `🗣️ ${order.who}「${REACTIONS[fit.mark]}」`;
+    const jukuStr = juku.name ? `　✨${juku.name}` : "";
     document.getElementById("resultOrders").textContent =
-      `📊 ${gain}pt（×${timingMult(ferment).toFixed(1)} × ${SCORE_ORDER_MULT[fit.mark]}）　${pref}｜${st.name}でしぼり${juku.name ? `・✨${juku.name}` : ""}`;
+      `${timingLabel(ferment)}　${orderLabel(fit.mark)}${jukuStr}　→ ${gain}pt 獲得`;
 
     let nextLine, unlock = "";
     if (conqueredNow) {
