@@ -331,7 +331,7 @@
       fitMark = fit.mark;
       const nigoriTxt = nigori > 0 ? `（にごり -${nigori}）` : "";
       statusSake.textContent = `${b.adj}${b.grade}${nigoriTxt}`;
-      const nudge = fitNudge(order.id, s.kaori, s.koku, fit.mark).trim().replace(/[（）]/g, "");
+      const nudge = fitHint(order.id, s.kaori, s.koku, fit.mark);
       statusFit.textContent = `${fit.mark} ${nudge}`;
       statusFit.className = `status-fit ${fit.mark === "◎" ? "fit-maru2" : fit.mark === "○" ? "fit-maru" : "fit-sanka"}`;
     }
@@ -379,13 +379,11 @@
     return { total, grade: gradeOf(total), character: ch, adj: adjOf(ch), juku };
   }
   // 仕上がり予報のひとこと（◎なら満足、それ以外はどっちに寄せるか）
-  function fitNudge(aimId, ka, ko, mark) {
-    if (mark === "◎") return " ばっちり！";
-    let push;
-    if (aimId === "kaori") push = "もっと香りを";
-    else if (aimId === "koku") push = "もっとこくを";
-    else push = ka > ko ? "こくを足して" : "香りを足して";
-    return `（${push}）`;
+  function fitHint(aimId, ka, ko, mark) {
+    if (mark === "◎") return "ばっちり！";
+    if (aimId === "kaori") return "💧🍚を揃えて";
+    if (aimId === "koku")  return "🌾🦠を揃えて";
+    return ka > ko ? "🌾🦠を揃えて" : "💧🍚を揃えて"; // balance：低い方を引き上げる
   }
   // タイミング倍率：発酵度がピーク中央（75前後）に近いほど高い
   function timingMult(f) {
@@ -710,7 +708,14 @@
     // ③ まずその場で香り/こくパネルとして生まれる（未分離。連鎖と同じく一度その場で見せる）
     board[C.r][C.c] = makePanel(axis, value);
     const juku = jukuseiNameOf(value);
-    toast(`🫧 酛！ 素材${count}個 → ${AXIS_DEF[axis].emoji}${value}${juku ? `　✨${juku}` : ""}`);
+    const hasMergeTarget = [[-1,0],[1,0],[0,-1],[0,1]].some(([dr,dc]) => {
+      const nr = C.r+dr, nc = C.c+dc;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) return false;
+      const t = board[nr][nc];
+      return t && t.kind === "panel" && t.axis === axis && t.value === value;
+    });
+    const mergeHint = hasMergeTarget ? "　← まとめ候補！" : "";
+    toast(`🫧 酛！ 素材${count}個 → ${AXIS_DEF[axis].emoji}${value}${juku ? `　✨${juku}` : ""}${mergeHint}`);
     render({ [`${C.r},${C.c}`]: "grow" }); await sleep(280);
     // ④ パネルはその場に止めたまま（中央落下はしない）→ そのまま上下へ分離。
     //    穴は分離の落下で素材が埋める。連鎖があれば連鎖。生まれた新パネルだけ立ちのぼり/沈み。
