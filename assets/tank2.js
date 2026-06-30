@@ -348,7 +348,7 @@
     if (ferment >= PEAK_HI) { fillCls = "s-over"; label = "🍶 はやくしぼって！"; }
     else if (ferment >= PEAK_LO) { fillCls = "s-peak"; label = "🍶 いまだ！しぼる"; }
     else if (ferment >= 40) { fillCls = "s-ready"; label = "🍶 しぼる"; }
-    else { fillCls = "s-young"; label = "🍶 しぼる（まだあまい）"; }
+    else { fillCls = "s-young"; label = "🍶 しぼる"; }
     shiboruFill.className = `shiboru-fill ${fillCls}`;
     const skipTxt = fermentSkip > 0 ? `　⏸️×${fermentSkip}` : "";
     const peakMovesLeft = (ferment >= PEAK_LO && ferment < PEAK_HI)
