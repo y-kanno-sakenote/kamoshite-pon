@@ -33,6 +33,7 @@
   const NIGORI_PER_OVERRIPE = 2;
   const KAIIRE_CHARGES = 2; // 櫂入れ（よこ一列さらい）の回数／1仕込み
   const FERMENT_SKIP_MAX = 2; // まとめのごほうび（発酵ひと休み）の貯金上限。溜めても凍結はできない
+  const FERMENT_PER_MERGE = 1; // まとめ手で進む発酵（通常手より小さい）。貯金が満タンでも時間は止められない
 
   const STAGES = [
     { min: 0,   name: "あまざけ", mult: 0.6 },
@@ -78,6 +79,7 @@
 
   const CELLAR_KEY = "kamoshitepon_tank2_cellar_v1";
   const CELLAR_MAX = 60;
+  const TIP_SKIP_KEY = "kamoshitepon_tank2_tip_skip_v1"; // ⏸️の使い所を初回だけ説明したか
 
   const RANKS = [
     { min: 0,    name: "みならい蔵" },
@@ -457,11 +459,12 @@
     infoAimSub.textContent  = `${order.who}のオーダー`;
   }
 
-  function advanceFerment() {
-    // まとめのごほうびが溜まっていれば、この一手は発酵を進めない（バーは後退しない＝ひと休み）
-    if (fermentSkip > 0) { fermentSkip--; toast("⏸️ 発酵はひと休み（まとめのごほうび）", 1); return; }
+  // 発酵を進める。respectSkip=true の通常手は、まとめの貯金⏸️があればこの一手をひと休み。
+  // respectSkip=false（まとめ手など）は貯金に関係なく必ず少し進む＝時間は止められない。
+  function advanceFerment(amount = FERMENT_PER_MOVE, respectSkip = true) {
+    if (respectSkip && fermentSkip > 0) { fermentSkip--; toast("⏸️ 発酵はひと休み（まとめのごほうび）", 1); return; }
     const wasBelowPeak = ferment < PEAK_LO;
-    ferment += FERMENT_PER_MOVE;
+    ferment += amount;
     if (ferment > 100) ferment = 100;
     if (ferment >= PEAK_HI) nigori += NIGORI_PER_OVERRIPE;
     // のみごろ → ピークに入った瞬間、しぼりどきを知らせる
@@ -655,20 +658,28 @@
     const newValue = tb.value * 2;
     const mergePts = newValue * SCORE_MERGE_PER_VALUE;
     sessionScore += mergePts;
-    // まとめると、次の1手ぶん発酵がひと休み（発酵バーは後退しない＝時間を稼げる）。
-    // ただし貯金には上限あり：溜めすぎて発酵を凍結はできない（見きわめの緊張感を守る）
+    // まとめ手自体も発酵は少し進む（貯金が満タンでも時間は止められない＝見きわめの緊張感を守る）
+    advanceFerment(FERMENT_PER_MERGE, false);
+    // ごほうびとして「あとで使える発酵ひと休み⏸️」を1つ貯金（上限あり）
     const restGained = fermentSkip < FERMENT_SKIP_MAX;
     if (restGained) fermentSkip += 1;
     render({ [`${a.r},${a.c}`]: "pop" }); await sleep(160);
     board[a.r][a.c] = null;
     board[b.r][b.c] = makePanel(tb.axis, newValue);
     const juku = jukuseiNameOf(newValue);
-    const restTxt = restGained ? "・⏸️発酵ひと休み" : "・⏸️は満タン";
+    const restTxt = restGained ? "・⏸️ためた" : "・⏸️は満タン";
     toast(`${AXIS_DEF[tb.axis].emoji}まとめた！ ${newValue}${juku ? `　✨${juku}` : ""}（+${mergePts}pt${restTxt}）`);
+    if (restGained) showSkipTipOnce();
     render({ [`${b.r},${b.c}`]: "grow" }); await sleep(220);
     applyGravity();
     render(refill()); await sleep(160);
     busy = false;
+  }
+  // ⏸️を初めて貯めたとき、その使い所を一度だけ説明する
+  function showSkipTipOnce() {
+    if (localStorage.getItem(TIP_SKIP_KEY)) return;
+    localStorage.setItem(TIP_SKIP_KEY, "1");
+    toast("⏸️をためた！ピーク（緑の帯）を待ちたいとき、次の入れかえで発酵を止められるよ", 1);
   }
 
   // ---------- 酛（もと）：入れ替え→中心の3×3が消滅→中央にその軸のパネルが1枚生まれる ----------
