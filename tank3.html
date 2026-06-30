@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>かもしてぽん！タンクモード（道具版）</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/tank3.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <h1 class="title">かもしてぽん！<span class="dev-badge">道具版</span></h1>
+    </header>
+
+    <!-- 場所・ランク（左）＋ねらい（右）の2行カード -->
+    <section class="info-bar">
+      <div class="info-loc">
+        <span class="info-pref" id="infoPref"></span>
+        <span class="info-rank" id="infoRank"></span>
+      </div>
+      <div class="info-aim">
+        <span class="info-aim-main" id="infoAimMain"></span>
+        <span class="info-aim-sub" id="infoAimSub"></span>
+      </div>
+    </section>
+
+    <section class="play-area">
+      <!-- シーソーゲージ：香り(上)↔こく(下)の偏り。緑の帯がねらいゾーン -->
+      <div class="gauge">
+        <span class="gauge-cap">🌸<br>香り</span>
+        <div class="gauge-track">
+          <div class="gauge-zone2" id="gaugeZone2"></div>
+          <div class="gauge-zone" id="gaugeZone"></div>
+          <div class="gauge-center"></div>
+          <div class="gauge-fill" id="gaugeFill"></div>
+          <div class="gauge-marker" id="gaugeMarker"><span class="gauge-val" id="gaugeVal">0</span></div>
+        </div>
+        <span class="gauge-cap">こく<br>🍵</span>
+      </div>
+
+      <div class="board-area">
+        <div class="board" id="board"></div>
+        <div class="toast-layer" id="toastLayer"></div>
+      </div>
+    </section>
+
+    <div class="action-row">
+      <div class="status-card">
+        <span class="status-sake" id="statusSake">じゅんびちゅう…</span>
+        <span class="status-fit" id="statusFit"></span>
+      </div>
+      <button class="btn btn-sub kaiire-btn" id="kaiireBtn">🥢 櫂入れ（のこり2）</button>
+    </div>
+    <button class="btn shiboru-btn" id="shiboruBtn">
+      <span class="shiboru-fill" id="shiboruFill"></span>
+      <span class="shiboru-peakzone"></span>
+      <span class="shiboru-label" id="shiboruLabel">🍶 しぼる！</span>
+    </button>
+
+    <div class="controls">
+      <button class="btn btn-sub" id="helpBtn">あそびかた</button>
+      <button class="btn btn-sub" id="restartBtn">はじめから</button>
+      <button class="btn btn-sub" id="toolBtn">🎒 道具</button>
+      <button class="btn btn-sub" id="mapBtn">🗾 地図をひらく</button>
+    </div>
+  </main>
+
+  <!-- あそびかたモーダル -->
+  <div class="modal-back hidden" id="helpModal">
+    <div class="modal">
+      <h2>あそびかた</h2>
+      <p class="help-lead">盤面ぜんぶが<b>1本のタンク</b>。お酒を醸して、めざせ全国統一🎌</p>
+      <ol class="help-steps">
+        <li>となりと入れかえて素材を3つならべる。<b>こくは下・かおりは上</b>にたまる（🌾🦠→こく / 💧🍚→かおり）</li>
+        <li>よこの<b>シーソーゲージ</b>が香り↑・こく↓の偏りを示す。<b>緑のねらい帯</b>に液面を入れよう</li>
+        <li>🍶ボタンが満ちて<b>金色「いまだ！」</b>になったらしぼりどき</li>
+        <li>いい一本で<b>蔵の格UP</b> → 地方を制覇 → 次の地方へ（全国統一）</li>
+      </ol>
+      <details class="help-details">
+        <summary>もっとくわしく（道具とコツ）</summary>
+        <ul class="help-list">
+          <li><b>🫧酛（もと）</b>：となりの素材をあてると入れ替わり、まわりの<b>素材だけが消えて</b>中央にその軸のパネルが1枚生まれる（香り・こくのパネルは残る）。値は<b>まわりの素材の数</b>（1→1／2-4→2／5-7→4／8→8）</li>
+          <li><b>🥢櫂入れ</b>（1仕込み2回）：消したい素材をタップすると、その種類の素材がタンクからまとめて消える</li>
+          <li>こく・かおりパネルは<b>となりの同じ数字を2枚えらぶ</b>と倍にまとまる（1→2→4→8…／8で熟成ボーナス）</li>
+          <li>パネルを<b>まとめる</b>と、次の1手ぶん<b>発酵がひと休み⏸️</b>（しぼりどきを待ちやすい）</li>
+          <li>しぼる<b>タイミングで質が変わる</b>：ピークが最高、待ちすぎはお酢🫙でにごる</li>
+          <li>かおり＋こくの合計で<b>格</b>（普通酒→大吟醸）、かたよりで<b>個性</b>が決まる</li>
+          <li>蔵が育つほど<b>審査がきびしく</b>なる／昇格でタンク拡張</li>
+        </ul>
+      </details>
+      <button class="btn btn-main" id="helpCloseBtn">よし、かもすぞ！</button>
+    </div>
+  </div>
+
+  <!-- 結果モーダル -->
+  <div class="modal-back hidden" id="resultModal">
+    <div class="modal">
+      <h2>今年の一本、できました！</h2>
+      <p class="result-score" id="resultScore">◎</p>
+      <p class="result-rank" id="resultRank"></p>
+      <p class="result-reaction" id="resultReaction"></p>
+      <p class="result-best" id="resultOrders"></p>
+      <div class="prestige" id="prestigeBox"></div>
+      <details class="cellar-details">
+        <summary>蔵だな（あつめた一本）</summary>
+        <div class="cellar-list" id="cellarList"></div>
+      </details>
+      <button class="btn btn-main" id="retryBtn">もういっぽん かもす！</button>
+      <button class="btn btn-sub" id="resultMapBtn" style="margin-top: 8px;">🗾 次の地方をえらぶ</button>
+    </div>
+  </div>
+
+  <!-- 全国地図モーダル -->
+  <div class="modal-back hidden" id="mapModal">
+    <div class="modal map-modal">
+      <h2>全国の酒蔵</h2>
+      <p class="map-count" id="mapCount"></p>
+      <div class="map-regions" id="mapRegions"></div>
+      <button class="btn btn-main" id="mapCloseBtn">蔵にもどる</button>
+    </div>
+  </div>
+
+  <!-- 道具（特殊パネル）えらびモーダル -->
+  <div class="modal-back hidden" id="toolModal">
+    <div class="modal">
+      <h2>🎒 道具えらび</h2>
+      <p class="tool-lead">地方を<b>制覇</b>すると、その土地の<b>特殊パネル</b>が手に入る。<br>ひとつ<b>装備</b>して仕込みにのぞもう。</p>
+      <div class="tool-list" id="toolList"></div>
+      <button class="btn btn-main" id="toolCloseBtn">これで仕込む</button>
+    </div>
+  </div>
+
+  <script src="assets/tank3.js"></script>
+</body>
+</html>

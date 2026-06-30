@@ -1,0 +1,171 @@
+/* かもしてぽん！タンクモード（シーソーゲージ版）専用スタイル
+   ベースはタンクモードそのまま。ここでは盤面の横に立つ
+   「シーソーゲージ（香り↑↔こく↓の偏り）」だけを定義する。
+   色・ボタン・盤面セルは style.css を継承して使う。 */
+
+.dev-badge {
+  font-size: 0.55rem; vertical-align: middle; margin-left: 6px;
+  background: var(--accent); color: var(--ai-dark); border-radius: 999px; padding: 2px 8px; font-weight: bold;
+}
+
+/* ゲージ ＋ 盤面 を横並び（盤面の高さにゲージを合わせる） */
+.play-area { display: flex; gap: 10px; align-items: stretch; justify-content: center; }
+
+.gauge { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.gauge-cap { flex: 0 0 auto; font-size: 0.55rem; line-height: 1.05; text-align: center; color: var(--kinari); font-weight: bold; }
+
+/* ゲージ本体：上=香り(桃)／下=こく(緑)／中央=つりあい */
+.gauge-track {
+  position: relative; width: 30px; flex: 1 1 auto; min-height: 220px;
+  border-radius: 15px;
+  background: linear-gradient(to top, #639922 0%, #b6cf9a 40%, #f0e6d2 50%, #e6b3c6 60%, #d4537e 100%);
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,0.15), 0 3px 0 rgba(0,0,0,0.2);
+}
+/* ○帯（外・広い）と ◎帯（内・狭い）＝ねらいゾーン（蔵の格で狭まる） */
+.gauge-zone2 { position: absolute; left: -3px; right: -3px; background: rgba(91,163,91,0.16); border-radius: 4px; z-index: 1; }
+.gauge-zone  { position: absolute; left: -4px; right: -4px; background: rgba(91,163,91,0.40); border-top: 2px solid var(--good); border-bottom: 2px solid var(--good); border-radius: 4px; z-index: 2; }
+/* 中央0（つりあい）のライン */
+.gauge-center { position: absolute; left: -4px; right: -4px; height: 2px; bottom: 50%; background: rgba(0,0,0,0.35); z-index: 3; }
+/* 偏りの液柱（中央から現在値まで） */
+.gauge-fill { position: absolute; left: 50%; transform: translateX(-50%); width: 12px; border-radius: 6px; z-index: 4; transition: bottom 0.2s, height 0.2s; }
+.gauge-fill.to-kaori { background: #d4537e; }
+.gauge-fill.to-koku  { background: #4f8c1e; }
+/* 液面ライン＋数値（ねらい◎なら緑・○なら金） */
+.gauge-marker { position: absolute; left: -7px; right: -7px; height: 0; z-index: 5; border-top: 3px solid #2b2b2b; transition: bottom 0.2s; }
+.gauge-marker.maru  { border-top-color: var(--good); }
+.gauge-marker.maru2 { border-top-color: var(--accent); }
+.gauge-val {
+  position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 6px;
+  font-size: 0.62rem; font-weight: bold; color: var(--ai-dark);
+  background: var(--kinari); border-radius: 999px; padding: 1px 6px; white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.gauge-marker.maru  .gauge-val { background: var(--good); color: #fff; }
+.gauge-marker.maru2 .gauge-val { background: var(--accent); color: var(--ai-dark); }
+
+/* 場所・ランク（左）＋ねらい（右）の2行インフォバー */
+.info-bar {
+  display: flex; align-items: stretch;
+  background: var(--kinari); border-radius: 12px; overflow: hidden;
+  margin-bottom: 6px;
+}
+.info-loc {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 9px 12px; min-width: 88px; max-width: 110px;
+  border-right: 1.5px solid rgba(0,0,0,0.08);
+}
+.info-pref  { font-size: 15px; font-weight: bold; color: var(--ai-dark); line-height: 1.2; }
+.info-rank  { font-size: 11px; color: var(--ai-dark); opacity: 0.7; margin-top: 2px; }
+.info-rank-wrap { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+.info-rank-bar  { flex: 1; height: 3px; background: rgba(0,0,0,0.12); border-radius: 2px; }
+.info-rank-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; }
+.info-count { font-size: 10px; color: var(--ai-dark); opacity: 0.5; white-space: nowrap; }
+.info-aim {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  padding: 9px 13px;
+}
+.info-aim-main { font-size: 14px; font-weight: bold; color: var(--ai-dark); line-height: 1.3; }
+.info-aim-sub  { font-size: 11px; color: var(--ai-dark); opacity: 0.55; margin-top: 3px; }
+
+/* ステータスカード ＋ 櫂入れボタンを横並び */
+.action-row {
+  display: flex; align-items: stretch; gap: 8px; margin-bottom: 6px;
+}
+.action-row .status-card {
+  flex: 1; min-width: 0; margin-bottom: 0;
+  flex-direction: column; align-items: flex-start; justify-content: center;
+}
+.action-row .status-sake { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+.action-row .status-fit  { font-size: 12px; margin-top: 2px; }
+.action-row .kaiire-btn  {
+  flex: 0 0 auto; white-space: nowrap; margin-bottom: 0;
+  width: auto; max-width: none;
+  font-size: 0.78rem; padding: 0 14px;
+}
+
+/* 酒の状態 ＋ オーダー適合カード */
+.status-card {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--kinari); border-radius: 12px;
+  padding: 10px 14px; margin-bottom: 6px; gap: 10px;
+}
+.status-sake { font-size: 14px; font-weight: bold; color: var(--ai-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-fit  { font-size: 14px; font-weight: bold; white-space: nowrap; }
+.status-fit.fit-maru2 { color: var(--good); }
+.status-fit.fit-maru  { color: #c07800; }
+.status-fit.fit-sanka { color: var(--ai-dark); opacity: 0.45; }
+
+/* ---------- 道具（特殊パネル）えらびモーダル ---------- */
+.tool-lead { font-size: 0.85rem; line-height: 1.5; color: var(--ai-dark); opacity: 0.85; margin-bottom: 12px; }
+.tool-empty { font-size: 0.9rem; line-height: 1.6; color: var(--ai-dark); opacity: 0.7; text-align: center; padding: 18px 8px; }
+.tool-list { display: flex; flex-direction: column; gap: 8px; max-height: 56vh; overflow-y: auto; margin-bottom: 12px; }
+.tool-card {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: var(--kinari); border: 2px solid transparent; border-radius: 12px;
+  padding: 10px 12px; cursor: pointer; font-family: inherit;
+}
+.tool-card.equipped { border-color: var(--accent); background: #fff7e6; }
+.tool-card.locked   { opacity: 0.5; cursor: default; }
+.tool-emoji { font-size: 1.6rem; flex: 0 0 auto; }
+.tool-body  { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.tool-name  { font-size: 0.95rem; font-weight: bold; color: var(--ai-dark); }
+.tool-region { font-size: 0.72rem; font-weight: normal; opacity: 0.6; }
+.tool-desc  { font-size: 0.78rem; color: var(--ai-dark); opacity: 0.75; margin-top: 2px; }
+.tool-state { font-size: 0.74rem; font-weight: bold; color: var(--ai-dark); flex: 0 0 auto; white-space: nowrap; }
+.tool-card.equipped .tool-state { color: #c07800; }
+
+/* ドラッグ／スワイプ操作中にページがスクロールしないように */
+.board { touch-action: none; }
+
+/* 地図：見出しなしで日本地図っぽく中央寄せの段組み */
+.map-regions { gap: 10px; align-items: center; }
+.map-row { justify-content: center; }
+
+/* ---------- パネルの数字を見やすく（数字ごとの濃淡＋大きい数字＋まとめ候補ハイライト） ---------- */
+/* 数字ごとに背景の濃淡（軸の色系統の中で：かおり＝桃系／こく＝緑系）。絵文字で軸は判別できる */
+.cell.panel-kaori.pv-0 { background: #fde3ed; }
+.cell.panel-kaori.pv-1 { background: #fbc4dc; }
+.cell.panel-kaori.pv-2 { background: #f697c2; }
+.cell.panel-kaori.pv-3 { background: #ef67a1; }
+.cell.panel-kaori.pv-4 { background: #e23c85; }
+.cell.panel-kaori.pv-5 { background: #c01d6c; }
+.cell.panel-kaori.pv-6 { background: #8d1559; }
+.cell.panel-koku.pv-0 { background: #eaf6de; }
+.cell.panel-koku.pv-1 { background: #c9e6a1; }
+.cell.panel-koku.pv-2 { background: #a0d264; }
+.cell.panel-koku.pv-3 { background: #70ad36; }
+.cell.panel-koku.pv-4 { background: #428b2b; }
+.cell.panel-koku.pv-5 { background: #1f724b; }
+.cell.panel-koku.pv-6 { background: #0c6051; }
+
+/* 絵文字は少し小さく、数字を大きく・高コントラスト（暗いピル＋白文字） */
+.cell.panel-kaori, .cell.panel-koku { font-size: calc(var(--tile-size) * 0.42); }
+.cell .value-badge {
+  bottom: 1px; right: 2px;
+  font-size: calc(var(--tile-size) * 0.34);
+  font-weight: 900; line-height: 1.15;
+  padding: 0 5px; border-radius: 8px;
+  color: #fff; background: rgba(35,35,35,0.85);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.45);
+}
+
+/* まとめ候補（選択中パネルと同じ数字の隣）を金色に光らせる */
+.cell.merge-target { animation: mergePulse 0.6s ease-in-out infinite; z-index: 1; }
+@keyframes mergePulse {
+  0%, 100% { box-shadow: inset 0 0 0 4px var(--accent); }
+  50% { box-shadow: inset 0 0 0 4px #fff, 0 0 10px 3px var(--accent); }
+}
+
+/* マッチで生まれたパネルが定位置へ：香りは下から立ちのぼる／こくは上から沈む */
+.cell.rise-kaori { animation: riseKaori 0.42s ease-out; z-index: 2; }
+@keyframes riseKaori {
+  0%   { transform: translateY(70%) scale(0.65); opacity: 0; }
+  55%  { transform: translateY(-10%) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.cell.sink-koku { animation: sinkKoku 0.42s ease-out; z-index: 2; }
+@keyframes sinkKoku {
+  0%   { transform: translateY(-70%) scale(0.65); opacity: 0; }
+  55%  { transform: translateY(10%) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
