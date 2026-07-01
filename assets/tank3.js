@@ -113,7 +113,9 @@
   // ---------- モード（全国行脚 / フリー仕込み） ----------
   // フリー仕込み＝注文縛りなしで好きなだけ粘り、しぼる＝スコア確定→ランキングへ。
   // お酢＝バースト。ボラ上昇・審査ゾーンrandom・複数枠は次フェーズ（docs/omamori_design.md 参照）。
-  const MODE = { CAMPAIGN: "campaign", FREE: "free" };
+  const MODE = { CAMPAIGN: "campaign", FREE: "free", CONTEST: "contest" };
+  // 品評会：審査ゾーンをランダム化（今年の審査トレンド）。gauge空間で中心が動く。
+  const CONTEST_ZONE_RANGE = 42; // 審査ゾーン中心の振れ幅（-42〜+42）
   const FREE_ROWS = 6;
   // フリー仕込みの評価（スコア→ランク）。調整用の定数。
   const FREE_TIERS = [
@@ -129,14 +131,24 @@
   const VOL_PER_TURN = 1.6; // 1手ごとに増える揺れ幅（gauge単位）
   const VOL_MAX = 64;       // 揺れ幅の上限
   const RANKING_KEY = "kamoshitepon_tank3_ranking_v1";
+  const RANKING_KEY_CONTEST = "kamoshitepon_tank3_contest_ranking_v1";
   const RANKING_MAX = 10;
-  // 初期ランキングに置く架空のライバル蔵（NPC）
+  // 初期ランキングに置く架空のライバル蔵（NPC）。品評会は全国の強豪ぞろい。
   const NPC_SCORES = [
     { name: "灘の名蔵",     score: 620, rank: "特A・伝説賞", omamori: ["miyamizu"], npc: true },
     { name: "西条の吟醸蔵", score: 380, rank: "金賞",         omamori: ["nansui"],   npc: true },
     { name: "八丁の老舗",   score: 210, rank: "入賞",         omamori: ["ninengura"],npc: true },
     { name: "みならい蔵さん", score: 90, rank: "がんばり賞",  omamori: [],           npc: true },
   ];
+  const NPC_CONTEST = [
+    { name: "獺越（うまし）杜氏", score: 1180, rank: "特A・伝説賞", omamori: ["nansui", "kakou"], npc: true },
+    { name: "灘・生一本",         score: 940,  rank: "特A・伝説賞", omamori: ["miyamizu"], npc: true },
+    { name: "南部の名工",         score: 720,  rank: "特A・伝説賞", omamori: ["ginka"], npc: true },
+    { name: "能登四天王",         score: 520,  rank: "金賞",         omamori: ["kouji"], npc: true },
+    { name: "越後の若蔵",         score: 300,  rank: "金賞",         omamori: ["konbu"], npc: true },
+  ];
+  const rankingKeyOf = (contest) => contest ? RANKING_KEY_CONTEST : RANKING_KEY;
+  const rankingSeedOf = (contest) => (contest ? NPC_CONTEST : NPC_SCORES).slice();
   function freeRankOf(score) { for (const t of FREE_TIERS) if (score >= t.min) return t; return FREE_TIERS[FREE_TIERS.length - 1]; }
 
   const RANKS = [
@@ -218,16 +230,20 @@
   let turnCount = 0;                // フリー：手数（ボラ上昇の駆動）
   let volKick = 0;                  // フリー：今の揺れ（ゲージに乗るランダムオフセット）
   let volWarned = false;            // 暴走の初回通知フラグ
-  const isFree = () => mode === MODE.FREE;
+  let zoneCenter = 0;               // 審査ゾーンの中心（フリー=0固定／品評会=ランダム）
+  // 注文なしのスコアアタック系（フリー仕込み＋全国品評会）＝1本のループを共有
+  const isFree = () => mode === MODE.FREE || mode === MODE.CONTEST;
+  const isContest = () => mode === MODE.CONTEST;
   const isFreeModeUnlocked = () => conqueredCount() >= 1; // 1地方制覇で解放
-  const isConqueredAll = () => conqueredCount() >= PREFECTURES.length; // 10地方制覇=品評会へ
+  const isConqueredAll = () => conqueredCount() >= PREFECTURES.length; // 10地方制覇=品評会へ昇格
 
-  // フリー仕込みのローカルランキング（NPC込み）。上位RANKING_MAX件。
+  // スコアアタックのローカルランキング（NPC込み）。フリー/品評会で別々に保存。
   function loadRanking() {
-    try { const r = JSON.parse(localStorage.getItem(RANKING_KEY)); if (Array.isArray(r)) return r; } catch (e) {}
-    return NPC_SCORES.slice();
+    const key = rankingKeyOf(isContest());
+    try { const r = JSON.parse(localStorage.getItem(key)); if (Array.isArray(r)) return r; } catch (e) {}
+    return rankingSeedOf(isContest());
   }
-  function saveRanking(list) { localStorage.setItem(RANKING_KEY, JSON.stringify(list.slice(0, RANKING_MAX))); }
+  function saveRanking(list) { localStorage.setItem(rankingKeyOf(isContest()), JSON.stringify(list.slice(0, RANKING_MAX))); }
   function addRanking(entry) {
     const list = loadRanking();
     list.push(entry);
@@ -423,8 +439,8 @@
     // ゾーン：フリー＝中央固定帯／campaign＝注文の帯（熟練カーブ）
     let z;
     if (isFree()) {
-      const G = FREE_ZONE;
-      z = { maru: [-G.maru, G.maru], maru2: [-G.maru2, G.maru2] };
+      const G = FREE_ZONE, c = zoneCenter;
+      z = { maru: [c - G.maru, c + G.maru], maru2: [c - G.maru2, c + G.maru2] };
     } else {
       const aimId = order ? order.id : PREFECTURES[curIdx()].aim;
       z = gaugeZones(aimId, getRankIdx(loadPrestige()));
@@ -588,7 +604,7 @@
     const sp = equippedSpecial();
     const omamoriTxt = sp ? `　🎒${sp.emoji}${sp.name}` : "";
     if (isFree()) {
-      infoAimMain.textContent = "🎯 中央（ととのい）をねらう";
+      infoAimMain.textContent = isContest() ? contestTrendText() : "🎯 中央（ととのい）をねらう";
       infoAimSub.textContent  = `粘るほど発酵が暴れる${omamoriTxt}`;
       return;
     }
@@ -605,10 +621,10 @@
     volKick = Math.round((Math.random() * 2 - 1) * V);
     if (!volWarned && V >= 24) { volWarned = true; toast("🌀 発酵が暴れだした！ゲージが揺れるよ", 1); }
   }
-  // フリーの審査：中央ゾーンに（揺れ込みの）液面が入っているか。mark と倍率を返す。
+  // スコアアタックの審査：審査ゾーン（中心 zoneCenter）に、揺れ込みの液面が入っているか。
   function freeZoneEval(s) {
     const gv = Math.max(-100, Math.min(100, diffToGauge(tasteDiff(s)) + volKick));
-    const a = Math.abs(gv);
+    const a = Math.abs(gv - zoneCenter);
     if (a <= FREE_ZONE.maru)  return { mark: "◎", mult: FREE_ZONE.multMaru };
     if (a <= FREE_ZONE.maru2) return { mark: "○", mult: FREE_ZONE.multMaru2 };
     return { mark: "△", mult: FREE_ZONE.multMiss };
@@ -1112,12 +1128,13 @@
     return (ids || []).map((id) => { const sp = specialById(id); return sp ? sp.emoji : ""; }).join("");
   }
   function renderRanking(mine, myPos, tier, burst) {
+    document.getElementById("rankTitle").textContent = isContest() ? "🏆 全国品評会 結果" : "🎯 スコアアタック 結果";
     document.getElementById("rankHeadRank").textContent = mine.rank;
     document.getElementById("rankHeadRank").className = `rank-badge ${tier.cls}`;
     document.getElementById("rankHeadScore").textContent = `${mine.score}pt`;
     document.getElementById("rankHeadSub").textContent =
       burst ? "限界まで粘った…！次はピークでしぼろう" :
-      (myPos >= 0 ? `歴代 ${myPos + 1}位にランクイン！` : "今回は圏外。もう一本！");
+      (myPos >= 0 ? `${isContest() ? "全国" : "歴代"} ${myPos + 1}位にランクイン！` : "今回は圏外。もう一本！");
     const list = loadRanking();
     const el = document.getElementById("rankList");
     el.innerHTML = "";
@@ -1142,13 +1159,13 @@
     closeMap(); startGame();
   }
   function renderMap() {
-    // フリー仕込みは1地方制覇で解放
+    // フリー仕込みは1地方制覇で解放。10地方制覇で「全国品評会」に昇格。
     const freeBtn = document.getElementById("freeModeBtn");
     if (freeBtn) {
       const unlocked = isFreeModeUnlocked();
       freeBtn.style.display = unlocked ? "" : "none";
-      freeBtn.textContent = isConqueredAll() ? "🏆 全国品評会（近日）" : "🎯 フリー仕込み（スコアアタック）";
-      freeBtn.disabled = isConqueredAll(); // 品評会は次フェーズ
+      freeBtn.textContent = isConqueredAll() ? "🏆 全国品評会（審査ランダム）" : "🎯 フリー仕込み（スコアアタック）";
+      freeBtn.disabled = false;
     }
     document.getElementById("mapCount").textContent = `全国 ${conqueredCount()} / ${PREFECTURES.length} 制覇`;
     const wrap = document.getElementById("mapRegions");
@@ -1237,8 +1254,10 @@
     if (isFree()) {
       ROWS = FREE_ROWS;
       boardEl.className = "board kura-rank-0";
-      infoPref.textContent = "🎯 フリー仕込み";
-      infoRank.textContent = "好きなだけ粘って、いつでもしぼる";
+      // 品評会は審査ゾーン中心をランダム化（今年の審査トレンド）。フリーは中央固定。
+      zoneCenter = isContest() ? Math.round((Math.random() * 2 - 1) * CONTEST_ZONE_RANGE) : 0;
+      infoPref.textContent = isContest() ? "🏆 全国品評会" : "🎯 フリー仕込み";
+      infoRank.textContent = isContest() ? "今年の審査トレンドをねらえ" : "好きなだけ粘って、いつでもしぼる";
     } else {
       const rankIdx = getRankIdx(loadPrestige());
       ROWS = ROWS_BY_RANK[rankIdx];
@@ -1261,7 +1280,15 @@
   }
   // モード切替
   function startFree() { mode = MODE.FREE; closeMap(); startGame(); }
+  function startContest() { mode = MODE.CONTEST; closeMap(); startGame(); }
+  function enterScoreMode() { if (isConqueredAll()) startContest(); else startFree(); }
   function backToCampaign() { mode = MODE.CAMPAIGN; startGame(); }
+  // 審査トレンドの言葉（品評会の審査ゾーン中心→香り寄り/こく寄り/ど真ん中）
+  function contestTrendText() {
+    if (zoneCenter > 15) return "🌸 香り寄りが好まれる年";
+    if (zoneCenter < -15) return "🍵 こく寄りが好まれる年";
+    return "⚖️ ど真ん中が好まれる年";
+  }
 
   document.getElementById("helpBtn").addEventListener("click", () => helpModal.classList.remove("hidden"));
   document.getElementById("helpCloseBtn").addEventListener("click", () => helpModal.classList.add("hidden"));
@@ -1273,7 +1300,7 @@
   document.getElementById("toolBtn").addEventListener("click", openTool);
   document.getElementById("toolCloseBtn").addEventListener("click", closeTool);
   document.getElementById("resultOmamoriBtn").addEventListener("click", openTool);
-  document.getElementById("freeModeBtn").addEventListener("click", startFree);
+  document.getElementById("freeModeBtn").addEventListener("click", enterScoreMode);
   document.getElementById("rankRetryBtn").addEventListener("click", startGame);
   document.getElementById("rankBackBtn").addEventListener("click", backToCampaign);
   shiboruBtn.addEventListener("click", () => { if (!busy && !gameOver) shiboru(false); });
@@ -1300,7 +1327,7 @@
     equip: (id) => { equippedId = id; saveLoadout(id); renderOrder(); },
     equippedId: () => equippedId,
     debugVol: (n) => { turnCount = n; tickVolatility(); render(); return { turnCount, volKick, gaugeVal: gaugeVal && gaugeVal.textContent }; },
-    state: () => ({ ferment, nigori, fermentSkip, order, busy, gameOver, mode, turnCount, volKick, sessionScore, sums: boardSums(), preview: brewPreview(), rankIdx: getRankIdx(loadPrestige()), ROWS, pref: prefName(curIdx()), prefIdx: curIdx(), aim: PREFECTURES[curIdx()].aim, conquered: conqueredCount(), equipped: equippedSpecial()?.id || null }),
+    state: () => ({ ferment, nigori, fermentSkip, order, busy, gameOver, mode, turnCount, volKick, zoneCenter, sessionScore, sums: boardSums(), preview: brewPreview(), rankIdx: getRankIdx(loadPrestige()), ROWS, pref: prefName(curIdx()), prefIdx: curIdx(), aim: PREFECTURES[curIdx()].aim, conquered: conqueredCount(), equipped: equippedSpecial()?.id || null }),
     shiboru: () => shiboru(false),
     restart: startGame,
   };
