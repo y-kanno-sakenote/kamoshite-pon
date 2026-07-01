@@ -110,6 +110,30 @@
     kurokojiKaiire: 1,     // 黒麹：櫂入れ回数の追加
   };
 
+  // ---------- モード（全国行脚 / フリー仕込み） ----------
+  // フリー仕込み＝注文縛りなしで好きなだけ粘り、しぼる＝スコア確定→ランキングへ。
+  // お酢＝バースト。ボラ上昇・審査ゾーンrandom・複数枠は次フェーズ（docs/omamori_design.md 参照）。
+  const MODE = { CAMPAIGN: "campaign", FREE: "free" };
+  const FREE_ROWS = 6;
+  // フリー仕込みの評価（スコア→ランク）。調整用の定数。
+  const FREE_TIERS = [
+    { min: 500, rank: "特A・伝説賞", cls: "tier-legend" },
+    { min: 250, rank: "金賞",         cls: "tier-gold" },
+    { min: 100, rank: "入賞",         cls: "tier-silver" },
+    { min: 0,   rank: "がんばり賞",   cls: "tier-none" },
+  ];
+  const OSU_RANK = "お酢";
+  const RANKING_KEY = "kamoshitepon_tank3_ranking_v1";
+  const RANKING_MAX = 10;
+  // 初期ランキングに置く架空のライバル蔵（NPC）
+  const NPC_SCORES = [
+    { name: "灘の名蔵",     score: 620, rank: "特A・伝説賞", omamori: ["miyamizu"], npc: true },
+    { name: "西条の吟醸蔵", score: 380, rank: "金賞",         omamori: ["nansui"],   npc: true },
+    { name: "八丁の老舗",   score: 210, rank: "入賞",         omamori: ["ninengura"],npc: true },
+    { name: "みならい蔵さん", score: 90, rank: "がんばり賞",  omamori: [],           npc: true },
+  ];
+  function freeRankOf(score) { for (const t of FREE_TIERS) if (score >= t.min) return t; return FREE_TIERS[FREE_TIERS.length - 1]; }
+
   const RANKS = [
     { min: 0,    name: "みならい蔵" },
     { min: 300,  name: "蔵人の蔵" },
@@ -185,6 +209,25 @@
   let gameOver = false;
   let kaiireLeft = KAIIRE_CHARGES;  // 残り櫂入れ回数
   let kaiireMode = false;           // 櫂入れの列えらび中か
+  let mode = MODE.CAMPAIGN;         // 全国行脚 / フリー仕込み
+  const isFree = () => mode === MODE.FREE;
+  const isFreeModeUnlocked = () => conqueredCount() >= 1; // 1地方制覇で解放
+  const isConqueredAll = () => conqueredCount() >= PREFECTURES.length; // 10地方制覇=品評会へ
+
+  // フリー仕込みのローカルランキング（NPC込み）。上位RANKING_MAX件。
+  function loadRanking() {
+    try { const r = JSON.parse(localStorage.getItem(RANKING_KEY)); if (Array.isArray(r)) return r; } catch (e) {}
+    return NPC_SCORES.slice();
+  }
+  function saveRanking(list) { localStorage.setItem(RANKING_KEY, JSON.stringify(list.slice(0, RANKING_MAX))); }
+  function addRanking(entry) {
+    const list = loadRanking();
+    list.push(entry);
+    list.sort((a, b) => b.score - a.score);
+    const trimmed = list.slice(0, RANKING_MAX);
+    saveRanking(trimmed);
+    return trimmed.indexOf(entry); // 自分の順位（-1なら圏外）
+  }
 
   // ---------- DOM ----------
   const boardEl = document.getElementById("board");
@@ -204,6 +247,7 @@
   const mapModal = document.getElementById("mapModal");
   const toolModal = document.getElementById("toolModal");
   const toolList = document.getElementById("toolList");
+  const rankingModal = document.getElementById("rankingModal");
   // シーソーゲージ（香り−こくの偏りを見る）
   const gaugeZone = document.getElementById("gaugeZone");
   const gaugeZone2 = document.getElementById("gaugeZone2");
@@ -359,19 +403,26 @@
     if (!gaugeMarker) return;
     const total = s.kaori + s.koku;
     const gv = diffToGauge(tasteDiff(s));
-    const aimId = order ? order.id : PREFECTURES[curIdx()].aim;
-    const z = gaugeZones(aimId, getRankIdx(loadPrestige()));
     const pct = (v) => (v + 100) / 2; // -100→0% / +100→100%
-    gaugeZone2.style.bottom = `${pct(z.maru2[0])}%`;
-    gaugeZone2.style.height = `${pct(z.maru2[1]) - pct(z.maru2[0])}%`;
-    gaugeZone.style.bottom = `${pct(z.maru[0])}%`;
-    gaugeZone.style.height = `${pct(z.maru[1]) - pct(z.maru[0])}%`;
     const center = pct(0), now = pct(gv);
     gaugeFill.style.bottom = `${Math.min(center, now)}%`;
     gaugeFill.style.height = `${Math.abs(now - center)}%`;
     gaugeFill.classList.toggle("to-kaori", gv >= 0);
     gaugeFill.classList.toggle("to-koku", gv < 0);
     gaugeMarker.style.bottom = `${now}%`;
+    // フリー仕込み（骨組み）は審査ゾーンなし＝帯を消して中立表示（審査ゾーンrandomは品評会で）
+    if (isFree()) {
+      gaugeZone.style.height = "0%"; gaugeZone2.style.height = "0%";
+      gaugeMarker.className = "gauge-marker";
+      gaugeVal.textContent = (gv > 0 ? "+" : "") + gv;
+      return;
+    }
+    const aimId = order ? order.id : PREFECTURES[curIdx()].aim;
+    const z = gaugeZones(aimId, getRankIdx(loadPrestige()));
+    gaugeZone2.style.bottom = `${pct(z.maru2[0])}%`;
+    gaugeZone2.style.height = `${pct(z.maru2[1]) - pct(z.maru2[0])}%`;
+    gaugeZone.style.bottom = `${pct(z.maru[0])}%`;
+    gaugeZone.style.height = `${pct(z.maru[1]) - pct(z.maru[0])}%`;
     // 評価色は評価ロジックと一致させる。パネルが無い（total=0）うちは中立（灰）。
     const inMaru = total > 0 && gv >= z.maru[0] && gv <= z.maru[1];
     const inMaru2 = total > 0 && gv >= z.maru2[0] && gv <= z.maru2[1];
@@ -383,23 +434,28 @@
     const s = evalSums();
     updateGauge(s);
     const b = brewPreview();
-    // 盤面の地＝その県のテーマ色（B）。バランスは数値で見えるので地の色はご当地色に
-    boardEl.style.background = THEME_COLORS[PREFECTURES[curIdx()].theme] || "transparent";
+    // 盤面の地＝その県のテーマ色。フリーは中立地。
+    boardEl.style.background = isFree() ? "transparent" : (THEME_COLORS[PREFECTURES[curIdx()].theme] || "transparent");
     // 仕上がり予報：今しぼったらどんな酒で、注文に◎○△か＋どっちに寄せるか
     let fitMark = "△";
-    if (order) {
+    const nigoriTxt = nigori > 0 ? `（にごり -${nigori}）` : "";
+    if (isFree()) {
+      // フリー：注文なし。今の一本＋積み上げ点を見せる
+      statusSake.textContent = `${b.adj}${b.grade}${nigoriTxt}`;
+      statusFit.textContent = `📊 ${sessionScore}pt`;
+      statusFit.className = "status-fit fit-maru";
+    } else if (order) {
       const rankIdx = getRankIdx(loadPrestige());
       const fit = applyGoishi(evalFit(order.id, s.kaori, s.koku, rankIdx));
       fitMark = fit.mark;
-      const nigoriTxt = nigori > 0 ? `（にごり -${nigori}）` : "";
       statusSake.textContent = `${b.adj}${b.grade}${nigoriTxt}`;
       const nudge = fitHint(order.id, s.kaori, s.koku, fit.mark);
       statusFit.textContent = `${fit.mark} ${nudge}`;
       statusFit.className = `status-fit ${fit.mark === "◎" ? "fit-maru2" : fit.mark === "○" ? "fit-maru" : "fit-sanka"}`;
     }
-    // 予想スコア：今しぼったら何pt確定するか（タイミング倍率 × 注文倍率）
+    // 予想スコア：今しぼったら何pt確定するか（タイミング倍率 ×〔フリーは注文倍率なし〕）
     const tm = timingMult(ferment);
-    const om = SCORE_ORDER_MULT[fitMark];
+    const om = isFree() ? 1 : SCORE_ORDER_MULT[fitMark];
     const projected = Math.round((sessionScore + b.juku.bonus) * tm * om);
     // しぼるボタン＝発酵バー：満ち具合（width）と色・言葉で進捗を伝える
     shiboruFill.style.width = `${Math.min(100, ferment)}%`;
@@ -516,9 +572,15 @@
     return "⚖️ 香りとこくをバランスよく";
   }
   function renderOrder() {
-    infoAimMain.textContent = aimText(order.id);
     const sp = equippedSpecial();
-    infoAimSub.textContent  = sp ? `${order.who}のオーダー　🎒${sp.emoji}${sp.name}` : `${order.who}のオーダー`;
+    const omamoriTxt = sp ? `　🎒${sp.emoji}${sp.name}` : "";
+    if (isFree()) {
+      infoAimMain.textContent = "🎯 スコアアタック";
+      infoAimSub.textContent  = `お酢になる前にしぼろう${omamoriTxt}`;
+      return;
+    }
+    infoAimMain.textContent = aimText(order.id);
+    infoAimSub.textContent  = `${order.who}のオーダー${omamoriTxt}`;
   }
 
   // 発酵を進める。respectSkip=true の通常手は、まとめの貯金⏸️があればこの一手をひと休み。
@@ -908,6 +970,7 @@
   async function shiboru(forced = false) {
     if ((busy && !forced) || gameOver) return;
     gameOver = true; busy = true;
+    if (isFree()) { await shiboruFree(forced); return; }
 
     const s = boardSums();
     const st = stageOf(ferment);
@@ -989,6 +1052,54 @@
     return "🎉 " + bits.join("／");
   }
 
+  // ---------- しぼる（フリー仕込み：スコア確定→ランキング） ----------
+  async function shiboruFree(forced) {
+    const st = stageOf(ferment);
+    const juku = jukuseiBonus();
+    const s = boardSums();
+    const grade = gradeOf(Math.max(0, Math.round((s.kaori + s.koku) * st.mult) - nigori + juku.bonus));
+    const adj = adjOf(characterOf(s.kaori, s.koku));
+    const score = Math.round((sessionScore + juku.bonus) * timingMult(ferment));
+    const burst = ferment >= 100; // お酢＝バースト
+    const tier = burst ? { rank: OSU_RANK, cls: "tier-osu" } : freeRankOf(score);
+    const sp = equippedSpecial();
+    const omamori = sp ? [sp.id] : [];
+
+    toast(burst ? "🫙 お酢になっちゃった…！" : `🍶 しぼり！ ${st.name}でしぼった`);
+    render(); await sleep(900);
+
+    const entry = { name: "あなたの一本", score, rank: tier.rank, adj, grade, omamori, date: Date.now(), me: true };
+    const myPos = addRanking(entry);
+    renderRanking(entry, myPos, tier, burst);
+    rankingModal.classList.remove("hidden");
+  }
+  // おまもりid配列 → アイコン列
+  function omamoriIcons(ids) {
+    return (ids || []).map((id) => { const sp = specialById(id); return sp ? sp.emoji : ""; }).join("");
+  }
+  function renderRanking(mine, myPos, tier, burst) {
+    document.getElementById("rankHeadRank").textContent = mine.rank;
+    document.getElementById("rankHeadRank").className = `rank-badge ${tier.cls}`;
+    document.getElementById("rankHeadScore").textContent = `${mine.score}pt`;
+    document.getElementById("rankHeadSub").textContent =
+      burst ? "限界まで粘った…！次はピークでしぼろう" :
+      (myPos >= 0 ? `歴代 ${myPos + 1}位にランクイン！` : "今回は圏外。もう一本！");
+    const list = loadRanking();
+    const el = document.getElementById("rankList");
+    el.innerHTML = "";
+    list.forEach((e, i) => {
+      const row = document.createElement("div");
+      row.className = "rank-row" + (i === myPos ? " me" : "") + (e.npc ? " npc" : "");
+      row.innerHTML =
+        `<span class="rank-pos">${i + 1}</span>` +
+        `<span class="rank-name">${e.name}</span>` +
+        `<span class="rank-omamori">${omamoriIcons(e.omamori)}</span>` +
+        `<span class="rank-tier">${e.rank}</span>` +
+        `<span class="rank-score">${e.score}pt</span>`;
+      el.appendChild(row);
+    });
+  }
+
   // ---------- 地図（県えらび） ----------
   function openMap() { renderMap(); mapModal.classList.remove("hidden"); }
   function closeMap() { mapModal.classList.add("hidden"); }
@@ -997,6 +1108,14 @@
     closeMap(); startGame();
   }
   function renderMap() {
+    // フリー仕込みは1地方制覇で解放
+    const freeBtn = document.getElementById("freeModeBtn");
+    if (freeBtn) {
+      const unlocked = isFreeModeUnlocked();
+      freeBtn.style.display = unlocked ? "" : "none";
+      freeBtn.textContent = isConqueredAll() ? "🏆 全国品評会（近日）" : "🎯 フリー仕込み（スコアアタック）";
+      freeBtn.disabled = isConqueredAll(); // 品評会は次フェーズ
+    }
     document.getElementById("mapCount").textContent = `全国 ${conqueredCount()} / ${PREFECTURES.length} 制覇`;
     const wrap = document.getElementById("mapRegions");
     wrap.innerHTML = "";
@@ -1081,25 +1200,33 @@
 
   // ---------- 開始 ----------
   function startGame() {
-    const rankIdx = getRankIdx(loadPrestige());
-    ROWS = ROWS_BY_RANK[rankIdx];
-    boardEl.className = `board kura-rank-${rankIdx}`;
-    const prestige = loadPrestige();
-    const nextRank = RANKS[rankIdx + 1];
-    const pct = nextRank ? Math.min(100, Math.round(((prestige - RANKS[rankIdx].min) / (nextRank.min - RANKS[rankIdx].min)) * 100)) : 100;
-    infoPref.textContent     = prefName(curIdx());
-    infoRank.textContent     = `${KURA_EMOJI[rankIdx]} ${RANKS[rankIdx].name}`;
+    if (isFree()) {
+      ROWS = FREE_ROWS;
+      boardEl.className = "board kura-rank-0";
+      infoPref.textContent = "🎯 フリー仕込み";
+      infoRank.textContent = "好きなだけ粘って、いつでもしぼる";
+    } else {
+      const rankIdx = getRankIdx(loadPrestige());
+      ROWS = ROWS_BY_RANK[rankIdx];
+      boardEl.className = `board kura-rank-${rankIdx}`;
+      infoPref.textContent = prefName(curIdx());
+      infoRank.textContent = `${KURA_EMOJI[rankIdx]} ${RANKS[rankIdx].name}`;
+    }
 
     ferment = 0; nigori = 0; fermentSkip = 0; sessionScore = 0; selected = null; gameOver = false; busy = false;
     // 黒麹：櫂入れ回数+1
     kaiireLeft = KAIIRE_CHARGES + (hasOmamori("kurokoji") ? OMAMORI.kurokojiKaiire : 0);
     setKaiireMode(false);
     initBoard();
-    drawOrder();
+    if (isFree()) order = null; else drawOrder();
     resultModal.classList.add("hidden");
+    if (rankingModal) rankingModal.classList.add("hidden");
     render(); renderOrder();
     updateKaiireBtn();
   }
+  // モード切替
+  function startFree() { mode = MODE.FREE; closeMap(); startGame(); }
+  function backToCampaign() { mode = MODE.CAMPAIGN; startGame(); }
 
   document.getElementById("helpBtn").addEventListener("click", () => helpModal.classList.remove("hidden"));
   document.getElementById("helpCloseBtn").addEventListener("click", () => helpModal.classList.add("hidden"));
@@ -1111,6 +1238,9 @@
   document.getElementById("toolBtn").addEventListener("click", openTool);
   document.getElementById("toolCloseBtn").addEventListener("click", closeTool);
   document.getElementById("resultOmamoriBtn").addEventListener("click", openTool);
+  document.getElementById("freeModeBtn").addEventListener("click", startFree);
+  document.getElementById("rankRetryBtn").addEventListener("click", startGame);
+  document.getElementById("rankBackBtn").addEventListener("click", backToCampaign);
   shiboruBtn.addEventListener("click", () => { if (!busy && !gameOver) shiboru(false); });
   kaiireBtn.addEventListener("click", toggleKaiire);
   // ドラッグ／スワイプ検知（盤面外まで動いても拾えるよう document で受ける）

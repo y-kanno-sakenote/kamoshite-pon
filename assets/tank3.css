@@ -115,6 +115,28 @@
 .tool-state { font-size: 0.74rem; font-weight: bold; color: var(--ai-dark); flex: 0 0 auto; white-space: nowrap; }
 .tool-card.equipped .tool-state { color: #c07800; }
 
+/* ---------- フリー仕込み ランキング ---------- */
+.rank-badge { font-size: 1.5rem; font-weight: 900; text-align: center; margin: 4px 0; }
+.rank-badge.tier-legend { background: linear-gradient(90deg,#e23c85,#e8a13c,#5ba35b,#3c9fe2); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.rank-badge.tier-gold   { color: #d4a017; }
+.rank-badge.tier-silver { color: #8a99a6; }
+.rank-badge.tier-none   { color: var(--ai-dark); opacity: 0.6; }
+.rank-badge.tier-osu    { color: var(--danger); }
+.rank-head-score { text-align: center; font-size: 1.7rem; font-weight: 900; color: var(--ai-dark); margin: 2px 0; }
+.rank-head-sub { text-align: center; font-size: 0.85rem; color: var(--ai-dark); opacity: 0.75; margin-bottom: 10px; }
+.rank-list { display: flex; flex-direction: column; gap: 3px; max-height: 40vh; overflow-y: auto; margin-bottom: 12px; }
+.rank-row {
+  display: grid; grid-template-columns: 26px 1fr auto auto auto; gap: 6px; align-items: center;
+  padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,0.03); font-size: 0.82rem; color: var(--ai-dark);
+}
+.rank-row.me  { background: #fff7e6; box-shadow: inset 0 0 0 2px var(--accent); font-weight: bold; }
+.rank-row.npc { opacity: 0.8; }
+.rank-pos { font-weight: bold; text-align: center; opacity: 0.7; }
+.rank-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-omamori { font-size: 0.9rem; }
+.rank-tier { font-size: 0.72rem; opacity: 0.8; white-space: nowrap; }
+.rank-score { font-weight: bold; white-space: nowrap; }
+
 /* ドラッグ／スワイプ操作中にページがスクロールしないように */
 .board { touch-action: none; }
 
