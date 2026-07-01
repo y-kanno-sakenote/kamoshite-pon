@@ -123,6 +123,11 @@
     { min: 0,   rank: "がんばり賞",   cls: "tier-none" },
   ];
   const OSU_RANK = "お酢";
+  // フリー仕込みの審査ゾーン（中央＝ととのったバランスほど高得点）。gauge空間(-100〜100)。
+  const FREE_ZONE = { maru: 12, maru2: 26, multMaru: 1.6, multMaru2: 1.1, multMiss: 0.7 };
+  // ボラ上昇（発酵の暴走）：ターン経過でゲージの揺れ幅Vが増える。
+  const VOL_PER_TURN = 1.6; // 1手ごとに増える揺れ幅（gauge単位）
+  const VOL_MAX = 64;       // 揺れ幅の上限
   const RANKING_KEY = "kamoshitepon_tank3_ranking_v1";
   const RANKING_MAX = 10;
   // 初期ランキングに置く架空のライバル蔵（NPC）
@@ -210,6 +215,9 @@
   let kaiireLeft = KAIIRE_CHARGES;  // 残り櫂入れ回数
   let kaiireMode = false;           // 櫂入れの列えらび中か
   let mode = MODE.CAMPAIGN;         // 全国行脚 / フリー仕込み
+  let turnCount = 0;                // フリー：手数（ボラ上昇の駆動）
+  let volKick = 0;                  // フリー：今の揺れ（ゲージに乗るランダムオフセット）
+  let volWarned = false;            // 暴走の初回通知フラグ
   const isFree = () => mode === MODE.FREE;
   const isFreeModeUnlocked = () => conqueredCount() >= 1; // 1地方制覇で解放
   const isConqueredAll = () => conqueredCount() >= PREFECTURES.length; // 10地方制覇=品評会へ
@@ -403,31 +411,33 @@
     if (!gaugeMarker) return;
     const total = s.kaori + s.koku;
     const gv = diffToGauge(tasteDiff(s));
+    // フリーは「揺れ込み」の液面を表示（＝実際の審査位置）。campaignは素の液面。
+    const gvShown = isFree() ? Math.max(-100, Math.min(100, gv + volKick)) : gv;
     const pct = (v) => (v + 100) / 2; // -100→0% / +100→100%
-    const center = pct(0), now = pct(gv);
+    const center = pct(0), now = pct(gvShown);
     gaugeFill.style.bottom = `${Math.min(center, now)}%`;
     gaugeFill.style.height = `${Math.abs(now - center)}%`;
-    gaugeFill.classList.toggle("to-kaori", gv >= 0);
-    gaugeFill.classList.toggle("to-koku", gv < 0);
+    gaugeFill.classList.toggle("to-kaori", gvShown >= 0);
+    gaugeFill.classList.toggle("to-koku", gvShown < 0);
     gaugeMarker.style.bottom = `${now}%`;
-    // フリー仕込み（骨組み）は審査ゾーンなし＝帯を消して中立表示（審査ゾーンrandomは品評会で）
+    // ゾーン：フリー＝中央固定帯／campaign＝注文の帯（熟練カーブ）
+    let z;
     if (isFree()) {
-      gaugeZone.style.height = "0%"; gaugeZone2.style.height = "0%";
-      gaugeMarker.className = "gauge-marker";
-      gaugeVal.textContent = (gv > 0 ? "+" : "") + gv;
-      return;
+      const G = FREE_ZONE;
+      z = { maru: [-G.maru, G.maru], maru2: [-G.maru2, G.maru2] };
+    } else {
+      const aimId = order ? order.id : PREFECTURES[curIdx()].aim;
+      z = gaugeZones(aimId, getRankIdx(loadPrestige()));
     }
-    const aimId = order ? order.id : PREFECTURES[curIdx()].aim;
-    const z = gaugeZones(aimId, getRankIdx(loadPrestige()));
     gaugeZone2.style.bottom = `${pct(z.maru2[0])}%`;
     gaugeZone2.style.height = `${pct(z.maru2[1]) - pct(z.maru2[0])}%`;
     gaugeZone.style.bottom = `${pct(z.maru[0])}%`;
     gaugeZone.style.height = `${pct(z.maru[1]) - pct(z.maru[0])}%`;
-    // 評価色は評価ロジックと一致させる。パネルが無い（total=0）うちは中立（灰）。
-    const inMaru = total > 0 && gv >= z.maru[0] && gv <= z.maru[1];
-    const inMaru2 = total > 0 && gv >= z.maru2[0] && gv <= z.maru2[1];
+    // 評価色は評価ロジックと一致。パネルが無い（total=0）うちは中立（灰）。
+    const inMaru = total > 0 && gvShown >= z.maru[0] && gvShown <= z.maru[1];
+    const inMaru2 = total > 0 && gvShown >= z.maru2[0] && gvShown <= z.maru2[1];
     gaugeMarker.className = "gauge-marker" + (inMaru ? " maru" : inMaru2 ? " maru2" : "");
-    gaugeVal.textContent = (gv > 0 ? "+" : "") + gv;
+    gaugeVal.textContent = (gvShown > 0 ? "+" : "") + gvShown;
   }
 
   function updateHud() {
@@ -438,12 +448,15 @@
     boardEl.style.background = isFree() ? "transparent" : (THEME_COLORS[PREFECTURES[curIdx()].theme] || "transparent");
     // 仕上がり予報：今しぼったらどんな酒で、注文に◎○△か＋どっちに寄せるか
     let fitMark = "△";
+    let freeMult = 1;
     const nigoriTxt = nigori > 0 ? `（にごり -${nigori}）` : "";
     if (isFree()) {
-      // フリー：注文なし。今の一本＋積み上げ点を見せる
+      // フリー：中央ゾーン（ととのい）を狙う。揺れ込みの液面で審査。
+      const z = freeZoneEval(s);
+      freeMult = z.mult;
       statusSake.textContent = `${b.adj}${b.grade}${nigoriTxt}`;
-      statusFit.textContent = `📊 ${sessionScore}pt`;
-      statusFit.className = "status-fit fit-maru";
+      statusFit.textContent = `${z.mark} ${sessionScore}pt`;
+      statusFit.className = `status-fit ${z.mark === "◎" ? "fit-maru2" : z.mark === "○" ? "fit-maru" : "fit-sanka"}`;
     } else if (order) {
       const rankIdx = getRankIdx(loadPrestige());
       const fit = applyGoishi(evalFit(order.id, s.kaori, s.koku, rankIdx));
@@ -453,9 +466,9 @@
       statusFit.textContent = `${fit.mark} ${nudge}`;
       statusFit.className = `status-fit ${fit.mark === "◎" ? "fit-maru2" : fit.mark === "○" ? "fit-maru" : "fit-sanka"}`;
     }
-    // 予想スコア：今しぼったら何pt確定するか（タイミング倍率 ×〔フリーは注文倍率なし〕）
+    // 予想スコア：今しぼったら何pt確定するか（タイミング倍率 ×〔フリーはゾーン倍率／campaignは注文倍率〕）
     const tm = timingMult(ferment);
-    const om = isFree() ? 1 : SCORE_ORDER_MULT[fitMark];
+    const om = isFree() ? freeMult : SCORE_ORDER_MULT[fitMark];
     const projected = Math.round((sessionScore + b.juku.bonus) * tm * om);
     // しぼるボタン＝発酵バー：満ち具合（width）と色・言葉で進捗を伝える
     shiboruFill.style.width = `${Math.min(100, ferment)}%`;
@@ -575,17 +588,36 @@
     const sp = equippedSpecial();
     const omamoriTxt = sp ? `　🎒${sp.emoji}${sp.name}` : "";
     if (isFree()) {
-      infoAimMain.textContent = "🎯 スコアアタック";
-      infoAimSub.textContent  = `お酢になる前にしぼろう${omamoriTxt}`;
+      infoAimMain.textContent = "🎯 中央（ととのい）をねらう";
+      infoAimSub.textContent  = `粘るほど発酵が暴れる${omamoriTxt}`;
       return;
     }
     infoAimMain.textContent = aimText(order.id);
     infoAimSub.textContent  = `${order.who}のオーダー${omamoriTxt}`;
   }
 
+  // ボラ上昇（発酵の暴走）：手を打つほど、ゲージの揺れ幅Vが大きくなる。
+  // ⏸️で発酵を止めても手数は進む＝暴走は止められない。フリー仕込みのみ有効。
+  function tickVolatility() {
+    turnCount++;
+    if (!isFree()) return;
+    const V = Math.min(VOL_MAX, turnCount * VOL_PER_TURN);
+    volKick = Math.round((Math.random() * 2 - 1) * V);
+    if (!volWarned && V >= 24) { volWarned = true; toast("🌀 発酵が暴れだした！ゲージが揺れるよ", 1); }
+  }
+  // フリーの審査：中央ゾーンに（揺れ込みの）液面が入っているか。mark と倍率を返す。
+  function freeZoneEval(s) {
+    const gv = Math.max(-100, Math.min(100, diffToGauge(tasteDiff(s)) + volKick));
+    const a = Math.abs(gv);
+    if (a <= FREE_ZONE.maru)  return { mark: "◎", mult: FREE_ZONE.multMaru };
+    if (a <= FREE_ZONE.maru2) return { mark: "○", mult: FREE_ZONE.multMaru2 };
+    return { mark: "△", mult: FREE_ZONE.multMiss };
+  }
+
   // 発酵を進める。respectSkip=true の通常手は、まとめの貯金⏸️があればこの一手をひと休み。
   // respectSkip=false（まとめ手など）は貯金に関係なく必ず少し進む＝時間は止められない。
   function advanceFerment(amount = FERMENT_PER_MOVE, respectSkip = true) {
+    tickVolatility(); // 手数を刻む（ボラ上昇）。⏸️で早期returnしても暴走は進む。
     if (respectSkip && fermentSkip > 0) { fermentSkip--; toast("⏸️ 発酵はひと休み（まとめのごほうび）", 1); return; }
     const wasBelowPeak = ferment < PEAK_LO;
     ferment += amount;
@@ -1059,7 +1091,9 @@
     const s = boardSums();
     const grade = gradeOf(Math.max(0, Math.round((s.kaori + s.koku) * st.mult) - nigori + juku.bonus));
     const adj = adjOf(characterOf(s.kaori, s.koku));
-    const score = Math.round((sessionScore + juku.bonus) * timingMult(ferment));
+    // スコア＝積み上げ点 × タイミング倍率 × ゾーン倍率（揺れ込みの液面で審査）
+    const zone = freeZoneEval(s);
+    const score = Math.round((sessionScore + juku.bonus) * timingMult(ferment) * zone.mult);
     const burst = ferment >= 100; // お酢＝バースト
     const tier = burst ? { rank: OSU_RANK, cls: "tier-osu" } : freeRankOf(score);
     const sp = equippedSpecial();
@@ -1214,6 +1248,7 @@
     }
 
     ferment = 0; nigori = 0; fermentSkip = 0; sessionScore = 0; selected = null; gameOver = false; busy = false;
+    turnCount = 0; volKick = 0; volWarned = false; // ボラ上昇リセット
     // 黒麹：櫂入れ回数+1
     kaiireLeft = KAIIRE_CHARGES + (hasOmamori("kurokoji") ? OMAMORI.kurokojiKaiire : 0);
     setKaiireMode(false);
@@ -1264,7 +1299,8 @@
     grantConquer: (idx) => { progress.prestige[idx] = CONQUER_AT; saveProgress(); renderOrder(); },
     equip: (id) => { equippedId = id; saveLoadout(id); renderOrder(); },
     equippedId: () => equippedId,
-    state: () => ({ ferment, nigori, fermentSkip, order, busy, gameOver, sums: boardSums(), preview: brewPreview(), rankIdx: getRankIdx(loadPrestige()), ROWS, pref: prefName(curIdx()), prefIdx: curIdx(), aim: PREFECTURES[curIdx()].aim, conquered: conqueredCount(), equipped: equippedSpecial()?.id || null }),
+    debugVol: (n) => { turnCount = n; tickVolatility(); render(); return { turnCount, volKick, gaugeVal: gaugeVal && gaugeVal.textContent }; },
+    state: () => ({ ferment, nigori, fermentSkip, order, busy, gameOver, mode, turnCount, volKick, sessionScore, sums: boardSums(), preview: brewPreview(), rankIdx: getRankIdx(loadPrestige()), ROWS, pref: prefName(curIdx()), prefIdx: curIdx(), aim: PREFECTURES[curIdx()].aim, conquered: conqueredCount(), equipped: equippedSpecial()?.id || null }),
     shiboru: () => shiboru(false),
     restart: startGame,
   };
