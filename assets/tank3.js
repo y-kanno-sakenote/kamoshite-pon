@@ -80,25 +80,35 @@
   const CELLAR_KEY = "kamoshitepon_tank3_cellar_v1";
   const CELLAR_MAX = 60;
   const TIP_SKIP_KEY = "kamoshitepon_tank3_tip_skip_v1"; // ⏸️の使い所を初回だけ説明したか
-  const LOADOUT_KEY = "kamoshitepon_tank3_loadout_v1";   // 装備中の特殊パネルid
+  const LOADOUT_KEY = "kamoshitepon_tank3_loadout_v1";   // 装備中のおまもりid
 
-  // 特殊パネル（道具）：地方を制覇すると解放され、挑戦前に1個だけ装備できる。
-  // 効果はB軸（注文に味を寄せる／盤面）限定。発酵タイミング（A軸）には触れない＝核を守る。
-  // region = PREFECTURES のインデックス。impl=false はロック枠（近日）。
+  // ご当地の発酵のおまもり（秘伝）：地方を制覇すると解放され、挑戦前に装備できる。
+  // 効果はB軸（注文に味を寄せる／盤面／スコア）限定。発酵タイミング（A軸）には触れない＝核を守る。
+  // 仕様：docs/omamori_design.md（第2版）。region = PREFECTURES のインデックス。
   const SPECIALS = [
-    { id: "ginka", region: 1, emoji: "🌸", name: "吟香タネ",
-      desc: "マッチで生まれる香りパネルの初期値が +1", impl: true },
-    { id: "koikuchi", region: 2, emoji: "🍵", name: "濃口もと", desc: "（近日）", impl: false },
-    { id: "kassei",   region: 3, emoji: "🌸", name: "活性タネ", desc: "（近日）", impl: false },
-    { id: "tanrei",   region: 4, emoji: "⚖️", name: "淡麗ろ過", desc: "（近日）", impl: false },
-    { id: "noujun",   region: 5, emoji: "🍵", name: "濃醇もと", desc: "（近日）", impl: false },
-    { id: "otokozake", region: 6, emoji: "🍶", name: "男酒の櫂", desc: "（近日）", impl: false },
-    { id: "setouchi", region: 7, emoji: "🌸", name: "瀬戸内風", desc: "（近日）", impl: false },
-    { id: "tosa",     region: 8, emoji: "⚖️", name: "土佐の水", desc: "（近日）", impl: false },
-    { id: "satsuma",  region: 9, emoji: "🍵", name: "薩摩の火", desc: "（近日）", impl: false },
-    { id: "daichi",   region: 0, emoji: "🟤", name: "大地の酛", desc: "（近日）", impl: false },
+    { id: "ginka",    region: 1, emoji: "🌸", name: "吟香タネ",     desc: "香りパネルが少し大きく生まれる", impl: true },
+    { id: "kakou",    region: 3, emoji: "🍇", name: "甲州の果香",   desc: "小さな香り揃えが、ひと回り大きく", impl: true },
+    { id: "nansui",   region: 7, emoji: "💧", name: "軟水仕込み",   desc: "まとめると点が伸びる（香りは特に）", impl: true },
+    { id: "koikuchi", region: 2, emoji: "🍵", name: "濃口もと",     desc: "こくパネルが少し大きく生まれる", impl: true },
+    { id: "ninengura",region: 5, emoji: "🟫", name: "二年蔵",       desc: "大きく育てるほど旨みが増す", impl: true },
+    { id: "miyamizu", region: 6, emoji: "🍶", name: "宮水",         desc: "こくをれんぞくで消すほど高得点", impl: true },
+    { id: "konbu",    region: 0, emoji: "🟩", name: "昆布の一番だし", desc: "しぼる時、少ない側の味を底上げ", impl: true },
+    { id: "kouji",    region: 4, emoji: "🌾", name: "糀の花",       desc: "酛がよく現れ、ねらいの味に変わる", impl: true },
+    { id: "goishi",   region: 8, emoji: "🍵", name: "碁石茶",       desc: "あと一歩の○を、ここぞで◎に（1回）", impl: true },
+    { id: "kurokoji", region: 9, emoji: "⬛", name: "黒麹",         desc: "櫂入れ+1、こく寄りに盤面ひと掃き", impl: true },
   ];
   const specialById = (id) => SPECIALS.find((s) => s.id === id) || null;
+
+  // おまもりの調整値（すべてここに集約：CLAUDE.md準拠）
+  const OMAMORI = {
+    nansuiAll: 1.5,   // 軟水：merge スコア全軸倍率
+    nansuiKaori: 2.0, // 軟水：香り merge の倍率
+    ninengura: 1.5,   // 二年蔵：熟成ボーナス倍率（控えめ開始）
+    miyamizu: 1.5,    // 宮水：こく関与の連鎖スコア倍率
+    konbu: 4,         // 昆布：低い軸への底上げ量
+    koujiMotoChance: 0.16, // 糀：moto出現率（通常 MOTO_REFILL_CHANCE=0.06）
+    kurokojiKaiire: 1,     // 黒麹：櫂入れ回数の追加
+  };
 
   const RANKS = [
     { min: 0,    name: "みならい蔵" },
@@ -155,11 +165,13 @@
   function loadLoadout() { return localStorage.getItem(LOADOUT_KEY) || null; }
   function saveLoadout(id) { if (id) localStorage.setItem(LOADOUT_KEY, id); else localStorage.removeItem(LOADOUT_KEY); }
   let equippedId = loadLoadout();
-  // いま実際に効いている特殊パネル（装備中かつ解放済みのときだけ）
+  // いま実際に効いているおまもり（装備中かつ解放済みのときだけ）
   function equippedSpecial() {
     const sp = specialById(equippedId);
     return sp && isUnlocked(sp) ? sp : null;
   }
+  // 指定idのおまもりが効いているか（将来の複数枠にも拡張しやすいよう1関数に集約）
+  function hasOmamori(id) { const sp = equippedSpecial(); return !!sp && sp.id === id; }
 
   // ---------- 状態 ----------
   let board = [];
@@ -263,6 +275,21 @@
     }
     return { kaori, koku };
   }
+  // 昆布の一番だし：評価・ゲージ用に、少ない側の軸へ旨みを底上げ（つりあいへ）。
+  // グレード/生スコアの合計は据え置き＝B軸（注文への寄り）だけを助ける。
+  function evalSums() {
+    const s = boardSums();
+    if (hasOmamori("konbu")) {
+      if (s.kaori < s.koku) s.kaori += OMAMORI.konbu;
+      else if (s.koku < s.kaori) s.koku += OMAMORI.konbu;
+    }
+    return s;
+  }
+  // 碁石茶：あと一歩の○を◎に格上げ（クラッチ）。単発しぼりなので実効1回。
+  function applyGoishi(fit) {
+    if (fit && fit.mark === "○" && hasOmamori("goishi")) return { ...fit, mark: "◎", goishi: true };
+    return fit;
+  }
 
   // ---------- 描画 ----------
   function render(extraClasses = {}) {
@@ -353,7 +380,7 @@
   }
 
   function updateHud() {
-    const s = boardSums();
+    const s = evalSums();
     updateGauge(s);
     const b = brewPreview();
     // 盤面の地＝その県のテーマ色（B）。バランスは数値で見えるので地の色はご当地色に
@@ -362,7 +389,7 @@
     let fitMark = "△";
     if (order) {
       const rankIdx = getRankIdx(loadPrestige());
-      const fit = evalFit(order.id, s.kaori, s.koku, rankIdx);
+      const fit = applyGoishi(evalFit(order.id, s.kaori, s.koku, rankIdx));
       fitMark = fit.mark;
       const nigoriTxt = nigori > 0 ? `（にごり -${nigori}）` : "";
       statusSake.textContent = `${b.adj}${b.grade}${nigoriTxt}`;
@@ -404,6 +431,8 @@
         if (t.value >= JUKUSEI_TIERS[i].min) { bonus += JUKUSEI_TIERS[i].bonus; if (bestIdx < 0 || i < bestIdx) bestIdx = i; break; }
       }
     }
+    // 二年蔵：熟成ボーナスの加点UP（控えめ）
+    if (hasOmamori("ninengura")) bonus = Math.round(bonus * OMAMORI.ninengura);
     return { bonus, name: bestIdx >= 0 ? JUKUSEI_TIERS[bestIdx].name : null };
   }
   function brewPreview() {
@@ -541,13 +570,24 @@
   function refill() {
     const dropClasses = {};
     let hasMoto = board.some((row) => row.some((t) => t && t.kind === "moto"));
+    // 糀の花：酛（もと）の出現率UP
+    const motoChance = hasOmamori("kouji") ? OMAMORI.koujiMotoChance : MOTO_REFILL_CHANCE;
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++)
       if (board[r][c] === null) {
-        if (!hasMoto && Math.random() < MOTO_REFILL_CHANCE) { board[r][c] = makeMoto(); hasMoto = true; }
+        if (!hasMoto && Math.random() < motoChance) { board[r][c] = makeMoto(); hasMoto = true; }
         else board[r][c] = makeIng(randType());
         dropClasses[`${r},${c}`] = "drop";
       }
     return dropClasses;
+  }
+  // 糀の花：酛の変換先を「注文の軸」へ（バランス注文なら不足している軸へ）。
+  // おまもり無しなら null（＝素材本来の軸で変換）。
+  function koujiAxisOverride() {
+    if (!hasOmamori("kouji") || !order) return null;
+    if (order.id === "kaori") return AXIS.KAORI;
+    if (order.id === "koku") return AXIS.KOKU;
+    const s = boardSums(); // balance：少ない側へ寄せる
+    return s.kaori <= s.koku ? AXIS.KAORI : AXIS.KOKU;
   }
 
   // 隣接2マスのアクション：パネル同士（同じ軸・同じ数字）→まとめ／素材・酛どうし→入れかえ。成立で true
@@ -634,12 +674,15 @@
     while (groups.length > 0) {
       combo++;
       const popClasses = {}; const spawns = [];
-      const sp = equippedSpecial();
       for (const g of groups) {
         const axis = TYPES[g.type].axis;
-        let value = Math.pow(2, Math.min(g.cells.length, 5) - 3);
-        // 吟香タネ：香りパネルの初期値を +1（B軸＝かおりへ寄せやすく。発酵には無関係）
-        if (sp && sp.id === "ginka" && axis === AXIS.KAORI) value += 1;
+        // 甲州の果香：香り3〜4マッチのみ実効サイズ+1段（5マッチには乗らない）
+        let cells = g.cells.length;
+        if (hasOmamori("kakou") && axis === AXIS.KAORI && cells >= 3 && cells <= 4) cells += 1;
+        let value = Math.pow(2, Math.min(cells, 5) - 3);
+        // 吟香タネ：香りパネルの初期値+1／濃口もと：こくパネルの初期値+1（B軸＝味を寄せる）
+        if (hasOmamori("ginka") && axis === AXIS.KAORI) value += 1;
+        if (hasOmamori("koikuchi") && axis === AXIS.KOKU) value += 1;
         let at = g.cells[Math.floor(g.cells.length / 2)];
         if (originCell && g.cells.some((p) => p.r === originCell.r && p.c === originCell.c)) at = originCell;
         spawns.push({ ...at, axis, value });
@@ -649,7 +692,13 @@
       for (const g of groups) for (const p of g.cells) board[p.r][p.c] = null;
       // その場でパネル生成（軸分離はまだしない）
       for (const s of spawns) { const p = makePanel(s.axis, s.value); p.fresh = true; board[s.r][s.c] = p; }
-      const matchPts = groups.reduce((sum, g) => sum + g.cells.length * SCORE_MATCH_PER_CELL * combo, 0);
+      // 宮水：こくが絡む連鎖（combo>=2）のスコア倍率UP。他は基礎点のまま。
+      const miyamizu = hasOmamori("miyamizu") && combo >= 2;
+      const matchPts = groups.reduce((sum, g) => {
+        let pts = g.cells.length * SCORE_MATCH_PER_CELL * combo;
+        if (miyamizu && TYPES[g.type].axis === AXIS.KOKU) pts = Math.round(pts * OMAMORI.miyamizu);
+        return sum + pts;
+      }, 0);
       sessionScore += matchPts;
       const def = spawns.length ? AXIS_DEF[spawns[0].axis] : null;
       if (def) toast(combo >= 2 ? `れんぞく x${combo}！うまみパネル！ +${matchPts}pt` : `${def.emoji}${def.name}パネルが生まれた！ +${matchPts}pt`);
@@ -692,7 +741,10 @@
     const tb = board[b.r][b.c];
     busy = true;
     const newValue = tb.value * 2;
-    const mergePts = newValue * SCORE_MERGE_PER_VALUE;
+    // 軟水仕込み：mergeスコア 全軸×1.5・香りは×2
+    let mergeMult = 1;
+    if (hasOmamori("nansui")) mergeMult = tb.axis === AXIS.KAORI ? OMAMORI.nansuiKaori : OMAMORI.nansuiAll;
+    const mergePts = Math.round(newValue * SCORE_MERGE_PER_VALUE * mergeMult);
     sessionScore += mergePts;
     // まとめ手自体も発酵は少し進む（貯金が満タンでも時間は止められない＝見きわめの緊張感を守る）
     advanceFerment(FERMENT_PER_MERGE, false);
@@ -735,7 +787,8 @@
     advanceFerment();
     // 中心＝酛が入れ替わって移動した先（＝素材の元の位置）。そこに新パネルが生まれる。
     const C = ingPos;
-    const axis = TYPES[type].axis;
+    // 糀の花なら注文の軸へ変換。無しなら素材本来の軸。
+    const axis = koujiAxisOverride() || TYPES[type].axis;
     // ① 入れ替え（素材→酛の位置、酛→素材の位置）を見せる。
     [board[motoPos.r][motoPos.c], board[ingPos.r][ingPos.c]] = [board[ingPos.r][ingPos.c], board[motoPos.r][motoPos.c]];
     render(); await sleep(170);
@@ -807,8 +860,21 @@
     await sleep(220);
     for (const p of cells) board[p.r][p.c] = null;
     const def = TYPES[typeId];
-    toast(`🥢 櫂入れ！ ${def.emoji}${def.name}×${cells.length}を消した`);
     applyGravity();
+    // 黒麹：こく寄りに一掃＝力強いこくパネルを1枚残す
+    let kurokojiTxt = "";
+    if (hasOmamori("kurokoji")) {
+      const ings = [];
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++)
+        if (board[r][c] && board[r][c].kind === "ing") ings.push({ r, c });
+      if (ings.length) {
+        const p = ings[Math.floor(Math.random() * ings.length)];
+        board[p.r][p.c] = makePanel(AXIS.KOKU, 1);
+        applyGravity();
+        kurokojiTxt = "　⬛こくが残った";
+      }
+    }
+    toast(`🥢 櫂入れ！ ${def.emoji}${def.name}×${cells.length}を消した${kurokojiTxt}`);
     render(refill());
     await sleep(200);
     busy = false;
@@ -855,8 +921,10 @@
     const before = loadPrestige();
     const beforeRank = getRankIdx(before);
     const name = pickName(prefData);
-    // 評価＝注文の理想への寄り具合（蔵の格が高いほど◎が厳しい＝熟練カーブ）
-    const fit = evalFit(order.id, s.kaori, s.koku, beforeRank);
+    // 評価＝注文の理想への寄り具合（蔵の格が高いほど◎が厳しい＝熟練カーブ）。
+    // 昆布（評価用sums）・碁石茶（○→◎）のおまもりを反映。
+    const es = evalSums();
+    const fit = applyGoishi(evalFit(order.id, es.kaori, es.koku, beforeRank));
 
     toast(`🍶 しぼり！ ${st.name}でしぼった`);
     render(); await sleep(900);
@@ -963,7 +1031,7 @@
     if (!anyUnlocked) {
       const empty = document.createElement("p");
       empty.className = "tool-empty";
-      empty.textContent = "まだ道具がないよ。地方を制覇すると、その土地の特殊パネルが手に入る！";
+      empty.textContent = "まだおまもりがないよ。地方を制覇すると、その土地の発酵のおまもりが手に入る！";
       toolList.appendChild(empty);
       return;
     }
@@ -1009,7 +1077,9 @@
     infoRank.textContent     = `${KURA_EMOJI[rankIdx]} ${RANKS[rankIdx].name}`;
 
     ferment = 0; nigori = 0; fermentSkip = 0; sessionScore = 0; selected = null; gameOver = false; busy = false;
-    kaiireLeft = KAIIRE_CHARGES; setKaiireMode(false);
+    // 黒麹：櫂入れ回数+1
+    kaiireLeft = KAIIRE_CHARGES + (hasOmamori("kurokoji") ? OMAMORI.kurokojiKaiire : 0);
+    setKaiireMode(false);
     initBoard();
     drawOrder();
     resultModal.classList.add("hidden");
