@@ -98,6 +98,7 @@
 /* ---------- 道具（特殊パネル）えらびモーダル ---------- */
 .tool-lead { font-size: 0.85rem; line-height: 1.5; color: var(--ai-dark); opacity: 0.85; margin-bottom: 12px; }
 .tool-empty { font-size: 0.9rem; line-height: 1.6; color: var(--ai-dark); opacity: 0.7; text-align: center; padding: 18px 8px; }
+.tool-note { font-size: 0.8rem; line-height: 1.5; color: var(--ai-dark); opacity: 0.7; text-align: center; background: rgba(0,0,0,0.05); border-radius: 8px; padding: 8px 10px; margin: 0 0 4px; }
 .tool-list { display: flex; flex-direction: column; gap: 8px; max-height: 56vh; overflow-y: auto; margin-bottom: 12px; }
 .tool-card {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;

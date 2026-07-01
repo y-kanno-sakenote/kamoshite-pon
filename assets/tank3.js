@@ -1017,16 +1017,29 @@
     }
   }
 
-  // ---------- 道具（特殊パネル）えらび ----------
+  // ---------- おまもり（秘伝）えらび ----------
+  // 装備の変更は「仕込みの前（＝リザルト画面など gameOver 中）」だけ。
+  // 仕込み中（gameOver=false）は現在の装備の確認のみ（反映は仕込み開始時のため）。
+  const canEditLoadout = () => gameOver;
   function openTool() { renderTool(); toolModal.classList.remove("hidden"); }
   function closeTool() { toolModal.classList.add("hidden"); renderOrder(); }
   function equip(id) {
+    if (!canEditLoadout()) return; // 仕込み中は変更不可
     equippedId = (equippedId === id) ? null : id; // もう一度押すと外す
     saveLoadout(equippedId);
     renderTool();
   }
   function renderTool() {
+    const editable = canEditLoadout();
+    document.getElementById("toolCloseBtn").textContent = editable ? "これで仕込む" : "とじる";
     toolList.innerHTML = "";
+    // 仕込み中は「確認のみ」の注記
+    if (!editable) {
+      const note = document.createElement("p");
+      note.className = "tool-note";
+      note.textContent = "🔎 仕込み中は確認のみ。おまもりの変更は次の仕込みから。";
+      toolList.appendChild(note);
+    }
     const anyUnlocked = SPECIALS.some(isUnlocked);
     if (!anyUnlocked) {
       const empty = document.createElement("p");
@@ -1041,13 +1054,14 @@
       const card = document.createElement("button");
       card.className = "tool-card" + (equippedId === sp.id && unlocked ? " equipped" : "") + (locked ? " locked" : "");
       const where = PREFECTURES[sp.region].n;
-      const state = locked ? (sp.impl ? `🔒 ${where}を制覇で解放` : "🔒 近日") : (equippedId === sp.id ? "✅ 装備中" : "装備する");
+      const state = locked ? (sp.impl ? `🔒 ${where}を制覇で解放` : "🔒 近日")
+        : (equippedId === sp.id ? "✅ 装備中" : (editable ? "装備する" : "—"));
       card.innerHTML =
         `<span class="tool-emoji">${sp.emoji}</span>` +
         `<span class="tool-body"><span class="tool-name">${sp.name}<span class="tool-region">（${where}）</span></span>` +
         `<span class="tool-desc">${locked && !sp.impl ? "近日登場" : sp.desc}</span></span>` +
         `<span class="tool-state">${state}</span>`;
-      if (unlocked) card.addEventListener("click", () => equip(sp.id));
+      if (unlocked && editable) card.addEventListener("click", () => equip(sp.id));
       else card.disabled = true;
       toolList.appendChild(card);
     }
@@ -1096,6 +1110,7 @@
   document.getElementById("mapCloseBtn").addEventListener("click", closeMap);
   document.getElementById("toolBtn").addEventListener("click", openTool);
   document.getElementById("toolCloseBtn").addEventListener("click", closeTool);
+  document.getElementById("resultOmamoriBtn").addEventListener("click", openTool);
   shiboruBtn.addEventListener("click", () => { if (!busy && !gameOver) shiboru(false); });
   kaiireBtn.addEventListener("click", toggleKaiire);
   // ドラッグ／スワイプ検知（盤面外まで動いても拾えるよう document で受ける）
