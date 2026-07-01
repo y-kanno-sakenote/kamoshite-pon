@@ -80,7 +80,7 @@
   const CELLAR_KEY = "kamoshitepon_tank3_cellar_v1";
   const CELLAR_MAX = 60;
   const TIP_SKIP_KEY = "kamoshitepon_tank3_tip_skip_v1"; // ⏸️の使い所を初回だけ説明したか
-  const LOADOUT_KEY = "kamoshitepon_tank3_loadout_v1";   // 装備中のおまもりid
+  const LOADOUT_KEY = "kamoshitepon_tank3_loadout_v2";   // 装備ロードアウト {campaign:[],score:[]}
 
   // ご当地の発酵のおまもり（秘伝）：地方を制覇すると解放され、挑戦前に装備できる。
   // 効果はB軸（注文に味を寄せる／盤面／スコア）限定。発酵タイミング（A軸）には触れない＝核を守る。
@@ -201,18 +201,25 @@
   const conqueredCount = () => { let n = 0; for (let i = 0; i < PREFECTURES.length; i++) if (isConquered(i)) n++; return n; };
   function getRankIdx(p) { let i = 0; for (let k = 0; k < RANKS.length; k++) if (p >= RANKS[k].min) i = k; return i; }
 
-  // 道具（特殊パネル）：解放＝その地方を制覇済み。装備は1個だけ localStorage に保存。
+  // おまもり：解放＝その地方を制覇済み。ロードアウトは本編用・スコア用を別管理で localStorage 保存。
   const isUnlocked = (sp) => isConquered(sp.region) && sp.impl;
-  function loadLoadout() { return localStorage.getItem(LOADOUT_KEY) || null; }
-  function saveLoadout(id) { if (id) localStorage.setItem(LOADOUT_KEY, id); else localStorage.removeItem(LOADOUT_KEY); }
-  let equippedId = loadLoadout();
-  // いま実際に効いているおまもり（装備中かつ解放済みのときだけ）
-  function equippedSpecial() {
-    const sp = specialById(equippedId);
-    return sp && isUnlocked(sp) ? sp : null;
+  function loadLoadout() {
+    try { const o = JSON.parse(localStorage.getItem(LOADOUT_KEY)); if (o && Array.isArray(o.campaign) && Array.isArray(o.score)) return o; } catch (e) {}
+    return { campaign: [], score: [] };
   }
-  // 指定idのおまもりが効いているか（将来の複数枠にも拡張しやすいよう1関数に集約）
-  function hasOmamori(id) { const sp = equippedSpecial(); return !!sp && sp.id === id; }
+  function saveLoadout() { localStorage.setItem(LOADOUT_KEY, JSON.stringify(loadouts)); }
+  let loadouts = loadLoadout();
+  // 装備枠数：本編は1（3地方制覇で2）、フリー/品評会は3
+  function slotCap() { return isFree() ? 3 : (conqueredCount() >= 3 ? 2 : 1); }
+  // いま編集/参照するロードアウト（モード別）
+  function currentLoadout() { return isFree() ? loadouts.score : loadouts.campaign; }
+  // いま実際に効いているおまもりid（解放済みで絞り、枠上限まで）
+  function activeIds() {
+    return currentLoadout().filter((id) => { const sp = specialById(id); return sp && isUnlocked(sp); }).slice(0, slotCap());
+  }
+  function activeSpecials() { return activeIds().map(specialById); }
+  // 指定idのおまもりが効いているか（効果チェックはすべてこの1関数に集約）
+  function hasOmamori(id) { return activeIds().includes(id); }
 
   // ---------- 状態 ----------
   let board = [];
@@ -601,8 +608,8 @@
     return "⚖️ 香りとこくをバランスよく";
   }
   function renderOrder() {
-    const sp = equippedSpecial();
-    const omamoriTxt = sp ? `　🎒${sp.emoji}${sp.name}` : "";
+    const active = activeSpecials();
+    const omamoriTxt = active.length ? `　🎒${active.map((sp) => sp.emoji).join("")}` : "";
     if (isFree()) {
       infoAimMain.textContent = isContest() ? contestTrendText() : "🎯 中央（ととのい）をねらう";
       infoAimSub.textContent  = `粘るほど発酵が暴れる${omamoriTxt}`;
@@ -1112,8 +1119,7 @@
     const score = Math.round((sessionScore + juku.bonus) * timingMult(ferment) * zone.mult);
     const burst = ferment >= 100; // お酢＝バースト
     const tier = burst ? { rank: OSU_RANK, cls: "tier-osu" } : freeRankOf(score);
-    const sp = equippedSpecial();
-    const omamori = sp ? [sp.id] : [];
+    const omamori = activeIds();
 
     toast(burst ? "🫙 お酢になっちゃった…！" : `🍶 しぼり！ ${st.name}でしぼった`);
     render(); await sleep(900);
@@ -1195,21 +1201,28 @@
   function closeTool() { toolModal.classList.add("hidden"); renderOrder(); }
   function equip(id) {
     if (!canEditLoadout()) return; // 仕込み中は変更不可
-    equippedId = (equippedId === id) ? null : id; // もう一度押すと外す
-    saveLoadout(equippedId);
+    const lo = currentLoadout();
+    const i = lo.indexOf(id);
+    if (i >= 0) { lo.splice(i, 1); }                       // もう一度押すと外す
+    else if (lo.length >= slotCap()) { toast(`装備は${slotCap()}枠まで（先に外してね）`); return; }
+    else { lo.push(id); }
+    saveLoadout();
     renderTool();
   }
   function renderTool() {
     const editable = canEditLoadout();
     document.getElementById("toolCloseBtn").textContent = editable ? "これで仕込む" : "とじる";
     toolList.innerHTML = "";
-    // 仕込み中は「確認のみ」の注記
-    if (!editable) {
-      const note = document.createElement("p");
-      note.className = "tool-note";
-      note.textContent = "🔎 仕込み中は確認のみ。おまもりの変更は次の仕込みから。";
-      toolList.appendChild(note);
-    }
+    const lo = currentLoadout();
+    const cap = slotCap();
+    // 枠カウント（モード別：本編1〜2枠／フリー・品評会3枠）
+    const head = document.createElement("p");
+    head.className = "tool-note";
+    const modeLabel = isFree() ? "フリー・品評会" : "全国行脚";
+    head.textContent = editable
+      ? `🎒 ${modeLabel}：装備 ${lo.length}/${cap}枠　（組み合わせでシナジー！）`
+      : "🔎 仕込み中は確認のみ。おまもりの変更は次の仕込みから。";
+    toolList.appendChild(head);
     const anyUnlocked = SPECIALS.some(isUnlocked);
     if (!anyUnlocked) {
       const empty = document.createElement("p");
@@ -1221,11 +1234,12 @@
     for (const sp of SPECIALS) {
       const unlocked = isUnlocked(sp);
       const locked = !unlocked;
+      const isOn = unlocked && lo.includes(sp.id);
       const card = document.createElement("button");
-      card.className = "tool-card" + (equippedId === sp.id && unlocked ? " equipped" : "") + (locked ? " locked" : "");
+      card.className = "tool-card" + (isOn ? " equipped" : "") + (locked ? " locked" : "");
       const where = PREFECTURES[sp.region].n;
       const state = locked ? (sp.impl ? `🔒 ${where}を制覇で解放` : "🔒 近日")
-        : (equippedId === sp.id ? "✅ 装備中" : (editable ? "装備する" : "—"));
+        : (isOn ? "✅ 装備中" : (editable ? "装備する" : "—"));
       card.innerHTML =
         `<span class="tool-emoji">${sp.emoji}</span>` +
         `<span class="tool-body"><span class="tool-name">${sp.name}<span class="tool-region">（${where}）</span></span>` +
@@ -1302,6 +1316,7 @@
   document.getElementById("resultOmamoriBtn").addEventListener("click", openTool);
   document.getElementById("freeModeBtn").addEventListener("click", enterScoreMode);
   document.getElementById("rankRetryBtn").addEventListener("click", startGame);
+  document.getElementById("rankOmamoriBtn").addEventListener("click", openTool);
   document.getElementById("rankBackBtn").addEventListener("click", backToCampaign);
   shiboruBtn.addEventListener("click", () => { if (!busy && !gameOver) shiboru(false); });
   kaiireBtn.addEventListener("click", toggleKaiire);
@@ -1324,10 +1339,12 @@
     openMap, selectPref, openTool,
     // デバッグ：地方を制覇済みにする／道具を装備する
     grantConquer: (idx) => { progress.prestige[idx] = CONQUER_AT; saveProgress(); renderOrder(); },
-    equip: (id) => { equippedId = id; saveLoadout(id); renderOrder(); },
-    equippedId: () => equippedId,
+    equip: (ids) => { const arr = Array.isArray(ids) ? ids : (ids ? [ids] : []); if (isFree()) loadouts.score = arr; else loadouts.campaign = arr; saveLoadout(); renderOrder(); },
+    equipped: () => activeIds(),
+    slotCap: () => slotCap(),
+    has: (id) => hasOmamori(id),
     debugVol: (n) => { turnCount = n; tickVolatility(); render(); return { turnCount, volKick, gaugeVal: gaugeVal && gaugeVal.textContent }; },
-    state: () => ({ ferment, nigori, fermentSkip, order, busy, gameOver, mode, turnCount, volKick, zoneCenter, sessionScore, sums: boardSums(), preview: brewPreview(), rankIdx: getRankIdx(loadPrestige()), ROWS, pref: prefName(curIdx()), prefIdx: curIdx(), aim: PREFECTURES[curIdx()].aim, conquered: conqueredCount(), equipped: equippedSpecial()?.id || null }),
+    state: () => ({ ferment, nigori, fermentSkip, order, busy, gameOver, mode, turnCount, volKick, zoneCenter, sessionScore, sums: boardSums(), preview: brewPreview(), rankIdx: getRankIdx(loadPrestige()), ROWS, pref: prefName(curIdx()), prefIdx: curIdx(), aim: PREFECTURES[curIdx()].aim, conquered: conqueredCount(), equipped: activeIds(), slotCap: slotCap() }),
     shiboru: () => shiboru(false),
     restart: startGame,
   };
