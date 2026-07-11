@@ -284,7 +284,8 @@
   const infoAimSub   = document.getElementById("infoAimSub");
   const helpModal = document.getElementById("helpModal");
   const resultModal = document.getElementById("resultModal");
-  const mapModal = document.getElementById("mapModal");
+  const homeScreen = document.getElementById("homeScreen");
+  const gameScreen = document.getElementById("gameScreen");
   const toolModal = document.getElementById("toolModal");
   const toolList = document.getElementById("toolList");
   const rankingModal = document.getElementById("rankingModal");
@@ -1098,7 +1099,7 @@
     if (conqueredNow) {
       nextLine = allDone
         ? "🎌🎌 これで全国統一たっせい！おめでとう！"
-        : `🎌 ${pref}を制覇！ 地図から次の地方をえらぼう（蔵の格 +${gain}）`;
+        : `🎌 ${pref}を制覇！ ホームにもどって次の地方をえらぼう（蔵の格 +${gain}）`;
       // 制覇のごほうびを見せる：おまもり入手＋モード解放/昇格（今まで無言だった報酬を告知）
       const bits = [];
       const got = SPECIALS.find((s) => s.region === curIdx());
@@ -1201,13 +1202,20 @@
     });
   }
 
-  // ---------- 地図（県えらび） ----------
-  function openMap() { renderMap(); mapModal.classList.remove("hidden"); }
-  function closeMap() { mapModal.classList.add("hidden"); }
+  // ---------- ホーム（地図＝主役。ここから地方やモードをえらぶ） ----------
+  let atHome = true; // いまホーム画面か（装備編集の可否にも使う）
+  function showGame() { atHome = false; homeScreen.classList.add("hidden"); gameScreen.classList.remove("hidden"); }
+  function goHome() {
+    atHome = true;
+    resultModal.classList.add("hidden");
+    rankingModal.classList.add("hidden");
+    renderMap();
+    gameScreen.classList.add("hidden"); homeScreen.classList.remove("hidden");
+  }
   function selectPref(idx) {
     progress.current = idx; saveProgress();
-    mode = MODE.CAMPAIGN; // 地方を選ぶ＝全国行脚へ（フリー中に地図から選んでもfreeのままになるのを防ぐ）
-    closeMap(); startGame();
+    mode = MODE.CAMPAIGN; // 地方を選ぶ＝全国行脚へ
+    showGame(); startGame();
   }
   function renderMap() {
     // フリー仕込みは1地方制覇で解放。10地方制覇で「全国品評会」に昇格。
@@ -1220,7 +1228,7 @@
       freeBtn.disabled = !unlocked;
       freeBtn.classList.toggle("btn-locked", !unlocked);
     }
-    document.getElementById("mapCount").textContent = `全国 ${conqueredCount()} / ${PREFECTURES.length} 制覇`;
+    // 制覇の進みは地図の🎌旗で伝える（数値カウンターは出さない＝UI哲学）
     const wrap = document.getElementById("mapRegions");
     wrap.innerHTML = "";
     for (const rowIndices of MAP_ROWS) {
@@ -1243,7 +1251,7 @@
   // ---------- おまもり（秘伝）えらび ----------
   // 装備の変更は「仕込みの前（＝リザルト画面など gameOver 中）」だけ。
   // 仕込み中（gameOver=false）は現在の装備の確認のみ（反映は仕込み開始時のため）。
-  const canEditLoadout = () => gameOver;
+  const canEditLoadout = () => gameOver || atHome; // ホーム＝仕込み前なので編集OK
   function openTool() { renderTool(); toolModal.classList.remove("hidden"); }
   function closeTool() { toolModal.classList.add("hidden"); renderOrder(); }
   function equip(id) {
@@ -1340,8 +1348,8 @@
     updateKaiireBtn();
   }
   // モード切替
-  function startFree() { mode = MODE.FREE; closeMap(); startGame(); promptScoreLoadout(); }
-  function startContest() { mode = MODE.CONTEST; closeMap(); startGame(); promptScoreLoadout(); }
+  function startFree() { mode = MODE.FREE; showGame(); startGame(); promptScoreLoadout(); }
+  function startContest() { mode = MODE.CONTEST; showGame(); startGame(); promptScoreLoadout(); }
   function enterScoreMode() { if (isConqueredAll()) startContest(); else startFree(); }
   // 装備はモード別のカバン。スコア用が空のまま入ってきたら教える
   // （tank4プレイテスト：本編側で装備→フリーで効いておらず混乱、を防ぐ）
@@ -1350,7 +1358,6 @@
       toast("🎒 スコアアタック用のおまもりが空だよ！おまもり画面で装備しよう", 1);
     }
   }
-  function backToCampaign() { mode = MODE.CAMPAIGN; startGame(); }
   // 審査トレンドの言葉（品評会の審査ゾーン中心→香り寄り/こく寄り/ど真ん中）
   function contestTrendText() {
     if (zoneCenter > 15) return "🌸 香り寄りが好まれる年";
@@ -1359,12 +1366,13 @@
   }
 
   document.getElementById("helpBtn").addEventListener("click", () => helpModal.classList.remove("hidden"));
+  document.getElementById("homeHelpBtn").addEventListener("click", () => helpModal.classList.remove("hidden"));
   document.getElementById("helpCloseBtn").addEventListener("click", () => { helpModal.classList.add("hidden"); localStorage.setItem(HELP_SEEN_KEY, "1"); });
   document.getElementById("restartBtn").addEventListener("click", startGame);
   document.getElementById("retryBtn").addEventListener("click", startGame);
-  document.getElementById("mapBtn").addEventListener("click", openMap);
-  document.getElementById("resultMapBtn").addEventListener("click", openMap);
-  document.getElementById("mapCloseBtn").addEventListener("click", closeMap);
+  document.getElementById("homeBtn").addEventListener("click", goHome);
+  document.getElementById("resultHomeBtn").addEventListener("click", goHome);
+  document.getElementById("homeOmamoriBtn").addEventListener("click", openTool);
   document.getElementById("toolBtn").addEventListener("click", openTool);
   document.getElementById("toolCloseBtn").addEventListener("click", closeTool);
   document.getElementById("resultOmamoriBtn").addEventListener("click", openTool);
@@ -1372,7 +1380,7 @@
   document.getElementById("rankRenameBtn").addEventListener("click", renameKura);
   document.getElementById("rankRetryBtn").addEventListener("click", startGame);
   document.getElementById("rankOmamoriBtn").addEventListener("click", openTool);
-  document.getElementById("rankBackBtn").addEventListener("click", backToCampaign);
+  document.getElementById("rankBackBtn").addEventListener("click", goHome);
   shiboruBtn.addEventListener("click", () => { if (!busy && !gameOver) shiboru(false); });
   kaiireBtn.addEventListener("click", toggleKaiire);
   // ドラッグ／スワイプ検知（盤面外まで動いても拾えるよう document で受ける）
@@ -1380,7 +1388,8 @@
   document.addEventListener("pointerup", onPointerUp);
   document.addEventListener("pointercancel", () => { dragStart = null; });
 
-  startGame();
+  startGame();  // 盤面は先に用意しておく（ホームの奥で待機）
+  goHome();     // 起動はホーム画面から
   // あそびかたは初回だけ自動で開く（リピーターには出さない）
   if (!localStorage.getItem(HELP_SEEN_KEY)) helpModal.classList.remove("hidden");
 
@@ -1392,7 +1401,7 @@
     setMoto: (r, c) => { board[r][c] = makeMoto(); render(); },
     setFerment: (f) => { ferment = f; render(); },
     setPrefPrestige: (idx, p) => { progress.current = idx; progress.prestige[idx] = p; saveProgress(); },
-    openMap, selectPref, openTool,
+    goHome, showGame, selectPref, openTool,
     // デバッグ：地方を制覇済みにする／道具を装備する
     grantConquer: (idx) => { progress.prestige[idx] = CONQUER_AT; saveProgress(); renderOrder(); },
     equip: (ids) => { const arr = Array.isArray(ids) ? ids : (ids ? [ids] : []); if (isFree()) loadouts.score = arr; else loadouts.campaign = arr; saveLoadout(); renderOrder(); },

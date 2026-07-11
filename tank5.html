@@ -8,11 +8,22 @@
   <link rel="stylesheet" href="assets/tank5.css">
 </head>
 <body>
-  <main class="wrap">
+  <!-- ホーム画面：地図＝主役。ここから地方やモードをえらんで仕込みへ -->
+  <main class="wrap" id="homeScreen">
     <header class="header">
       <h1 class="title">かもしてぽん！<span class="dev-badge">調整版</span></h1>
     </header>
+    <p class="home-lead">お酒を醸して、めざせ全国統一🎌<br>地方をえらんで仕込みをはじめよう</p>
+    <div class="map-regions" id="mapRegions"></div>
+    <button class="btn btn-main home-mode-btn" id="freeModeBtn">🎯 フリー仕込み（スコアアタック）</button>
+    <div class="controls">
+      <button class="btn btn-sub" id="homeOmamoriBtn">🎒 おまもり</button>
+      <button class="btn btn-sub" id="homeHelpBtn">あそびかた</button>
+    </div>
+  </main>
 
+  <!-- 仕込み（パズル）画面 -->
+  <main class="wrap hidden" id="gameScreen">
     <!-- 場所・ランク（左）＋ねらい（右）の2行カード -->
     <section class="info-bar">
       <div class="info-loc">
@@ -62,7 +73,7 @@
       <button class="btn btn-sub" id="helpBtn">あそびかた</button>
       <button class="btn btn-sub" id="restartBtn">はじめから</button>
       <button class="btn btn-sub" id="toolBtn">🎒 おまもり</button>
-      <button class="btn btn-sub" id="mapBtn">🗾 地図をひらく</button>
+      <button class="btn btn-sub" id="homeBtn">🏠 ホームへ</button>
     </div>
   </main>
 
@@ -117,18 +128,7 @@
       </details>
       <button class="btn btn-main" id="retryBtn">もういっぽん かもす！</button>
       <button class="btn btn-sub" id="resultOmamoriBtn" style="margin-top: 8px;">🎒 おまもりをえらぶ</button>
-      <button class="btn btn-sub" id="resultMapBtn" style="margin-top: 8px;">🗾 次の地方をえらぶ</button>
-    </div>
-  </div>
-
-  <!-- 全国地図モーダル -->
-  <div class="modal-back hidden" id="mapModal">
-    <div class="modal map-modal">
-      <h2>全国の酒蔵</h2>
-      <p class="map-count" id="mapCount"></p>
-      <div class="map-regions" id="mapRegions"></div>
-      <button class="btn btn-main" id="freeModeBtn" style="margin-bottom: 8px;">🎯 フリー仕込み（スコアアタック）</button>
-      <button class="btn btn-main" id="mapCloseBtn">蔵にもどる</button>
+      <button class="btn btn-sub" id="resultHomeBtn" style="margin-top: 8px;">🏠 ホームへ（次の地方をえらぶ）</button>
     </div>
   </div>
 
@@ -143,7 +143,7 @@
       <button class="btn btn-main" id="rankRetryBtn">もういっぽん！</button>
       <button class="btn btn-sub" id="rankRenameBtn" style="margin-top: 8px;">✏️ 蔵の名前をかえる</button>
       <button class="btn btn-sub" id="rankOmamoriBtn" style="margin-top: 8px;">🎒 おまもりをえらぶ</button>
-      <button class="btn btn-sub" id="rankBackBtn" style="margin-top: 8px;">🏠 蔵にもどる</button>
+      <button class="btn btn-sub" id="rankBackBtn" style="margin-top: 8px;">🏠 ホームへ</button>
     </div>
   </div>
 
