@@ -1,0 +1,22 @@
+# GitHub Pages（Jekyll）の配信設定
+# 退役した旧版は配信から外す（ファイルはリポジトリに残す）。公開は index（入口）→ tank5。
+exclude:
+  - honben.html
+  - ippon.html
+  - kuramachi.html
+  - sodate.html
+  - tank.html
+  - tank2.html
+  - tank3.html
+  - tank4.html
+  - assets/game.js
+  - assets/ippon.js
+  - assets/kuramachi.js
+  - assets/sodate.js
+  - assets/tank.js
+  - assets/tank2.css
+  - assets/tank2.js
+  - assets/tank3.css
+  - assets/tank3.js
+  - assets/tank4.css
+  - assets/tank4.js
