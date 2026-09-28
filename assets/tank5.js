@@ -1396,11 +1396,13 @@
 
   // ---------- タイルの大きさを画面の高さからも決める ----------
   // 盤以外（インフォバー・櫂入れ行・しぼる札）の実高さを測り、しぼるボタンが画面内に収まるタイルを --tile-fit に入れる。
-  // 高さは実表示高（innerHeight＝Safariのツールバー分を除いた高さ）。背の低い横持ちは、8段のときだけ盤を左・操作を右の2列にする
+  // 高さは実表示高（visualViewport＝Safariのツールバー分を除いた高さ）。背の低い横持ちは、8段のときだけ盤を左・操作を右の2列にする
   // （6〜7段の横持ちは従来どおり1列・幅で決まる大きさのまま）。札の折り返し・回転・リサイズで測り直す。
   function fitTiles() {
     if (gameScreen.classList.contains("hidden")) return;
-    const H = window.innerHeight;
+    // 実表示高。ページが横にはみ出して縮小表示されているときも、縮小前（等倍）の高さで測る
+    const vv = window.visualViewport;
+    const H = vv ? vv.height * vv.scale : window.innerHeight;
     const low = window.innerWidth > H && H <= 540;
     const two = low && ROWS >= 8;
     gameScreen.classList.toggle("two-col", two);
