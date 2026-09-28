@@ -205,24 +205,15 @@ main.wrap.hidden { display: none; }
 }
 
 /* ---------- タイルの大きさを画面の高さからも決める ----------
-   蔵の格が上がって盤が8段になっても「しぼる」ボタンが画面内に収まるように。
-   --rows は tank5.js が盤の段数を入れる。--chrome-h＝盤以外（インフォバー・櫂入れ行・しぼる・余白）の高さ。
-   幅320pxで文字が折り返して背高になった時の実測（約273px）に余白を足した値。 */
-#gameScreen { --chrome-h: 280px; --tile-size: min(13.5vw, 64px, calc((100vh - var(--chrome-h)) / var(--rows, 6) - 5px)); }
-@supports (height: 100svh) {
-  #gameScreen { --tile-size: min(13.5vw, 64px, calc((100svh - var(--chrome-h)) / var(--rows, 6) - 5px)); }
+   --tile-fit は tank5.js の fitTiles() が盤以外の実高さと実表示高から計算して入れる（未設定なら従来どおり幅だけで決まる）。 */
+#gameScreen { --tile-size: min(13.5vw, 64px, var(--tile-fit, 64px)); }
+/* 背の低い横持ちで8段のときだけ：盤を左、操作を右に並べて盤に高さを譲る（JS が .two-col を付ける） */
+#gameScreen.two-col:not(.hidden) {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: start; align-items: start;
+  column-gap: 16px; row-gap: 6px; max-width: 900px; padding: 8px 12px;
 }
-/* 横持ち（背の低い画面）：盤を左、操作を右に並べて盤に高さを譲る */
-@media (orientation: landscape) and (max-height: 540px) {
-  #gameScreen:not(.hidden) {
-    display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: start; align-items: start;
-    column-gap: 16px; row-gap: 8px; max-width: 900px; padding: 8px 12px;
-    --tile-size: min(64px, calc((100vh - 48px) / var(--rows, 6) - 5px));
-  }
-  @supports (height: 100svh) {
-    #gameScreen:not(.hidden) { --tile-size: min(64px, calc((100svh - 48px) / var(--rows, 6) - 5px)); }
-  }
-  #gameScreen > .play-area { grid-column: 1; grid-row: 1 / span 4; }
-  #gameScreen > .info-bar, #gameScreen > .action-row { grid-column: 2; width: 100%; margin-bottom: 0; }
-  #gameScreen > .shiboru-btn, #gameScreen > .controls { grid-column: 2; justify-self: center; }
-}
+#gameScreen.two-col > .play-area { grid-column: 1; grid-row: 1 / span 4; }
+#gameScreen.two-col > .info-bar, #gameScreen.two-col > .action-row { grid-column: 2; width: 100%; margin-bottom: 0; }
+#gameScreen.two-col > .shiboru-btn, #gameScreen.two-col > .controls { grid-column: 2; justify-self: center; }
+#gameScreen.two-col > .controls { gap: 6px; }
+#gameScreen.two-col > .controls .btn { font-size: 0.8rem; padding: 6px 12px; }

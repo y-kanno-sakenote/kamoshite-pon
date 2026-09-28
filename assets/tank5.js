@@ -380,7 +380,6 @@
   function render(extraClasses = {}) {
     boardEl.style.gridTemplateColumns = `repeat(${COLS}, var(--tile-size))`;
     boardEl.style.gridTemplateRows = `repeat(${ROWS}, var(--tile-size))`;
-    gameScreen.style.setProperty("--rows", ROWS); // タイルの大きさを画面の高さからも決める（tank5.css）
     boardEl.innerHTML = "";
     // 選択中がパネルなら、隣接する「同じ軸・同じ数字」のパネルをまとめ候補としてハイライト
     const mergeTargets = {};
@@ -1205,7 +1204,7 @@
 
   // ---------- ホーム（地図＝主役。ここから地方やモードをえらぶ） ----------
   let atHome = true; // いまホーム画面か（装備編集の可否にも使う）
-  function showGame() { atHome = false; homeScreen.classList.add("hidden"); gameScreen.classList.remove("hidden"); }
+  function showGame() { atHome = false; homeScreen.classList.add("hidden"); gameScreen.classList.remove("hidden"); fitTiles(); }
   function goHome() {
     atHome = true;
     resultModal.classList.add("hidden");
@@ -1347,6 +1346,7 @@
     if (rankingModal) rankingModal.classList.add("hidden");
     render(); renderOrder();
     updateKaiireBtn();
+    fitTiles();
   }
   // モード切替
   function startFree() { mode = MODE.FREE; showGame(); startGame(); promptScoreLoadout(); }
@@ -1393,6 +1393,40 @@
   goHome();     // 起動はホーム画面から
   // あそびかたは初回だけ自動で開く（リピーターには出さない）
   if (!localStorage.getItem(HELP_SEEN_KEY)) helpModal.classList.remove("hidden");
+
+  // ---------- タイルの大きさを画面の高さからも決める ----------
+  // 盤以外（インフォバー・櫂入れ行・しぼる札）の実高さを測り、しぼるボタンが画面内に収まるタイルを --tile-fit に入れる。
+  // 高さは実表示高（innerHeight＝Safariのツールバー分を除いた高さ）。背の低い横持ちは、8段のときだけ盤を左・操作を右の2列にする
+  // （6〜7段の横持ちは従来どおり1列・幅で決まる大きさのまま）。札の折り返し・回転・リサイズで測り直す。
+  function fitTiles() {
+    if (gameScreen.classList.contains("hidden")) return;
+    const H = window.innerHeight;
+    const low = window.innerWidth > H && H <= 540;
+    const two = low && ROWS >= 8;
+    gameScreen.classList.toggle("two-col", two);
+    if (low && !two) { gameScreen.style.removeProperty("--tile-fit"); return; }
+    const MARGIN = 6; // 「いまだ！」の脈動（1.04倍）ぶんの余白
+    const cellW = () => { const c0 = boardEl.querySelector(".cell"); return c0 ? c0.getBoundingClientRect().width : 0; };
+    for (let k = 0; k < 4; k++) {
+      const cur = cellW(); if (!cur) return;
+      const bottomEl = two ? boardEl : shiboruBtn;
+      const bottom = bottomEl.getBoundingClientRect().bottom + window.scrollY;
+      const fixed = bottom - ROWS * (cur + 5); // 盤のタイル以外の高さ
+      const fit = Math.max(16, Math.floor(((H - MARGIN - fixed) / ROWS - 5) * 10) / 10);
+      gameScreen.style.setProperty("--tile-fit", fit + "px");
+      if (Math.abs(cellW() - cur) < 0.5) break;
+    }
+  }
+  let fitRaf = 0, fitTimer = 0;
+  // 回転の直後は寸法が落ち着くまで数回イベントが来るので、次のフレームと少し後の2回測る
+  const refit = () => { cancelAnimationFrame(fitRaf); clearTimeout(fitTimer); fitRaf = requestAnimationFrame(fitTiles); fitTimer = setTimeout(fitTiles, 300); };
+  window.addEventListener("resize", refit);
+  window.addEventListener("orientationchange", refit);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", refit);
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => fitTiles()); // 札の折り返しは描画前にその場で合わせる
+    [shiboruBtn, document.querySelector("#gameScreen .info-bar"), document.querySelector("#gameScreen .action-row")].forEach((el) => el && ro.observe(el));
+  }
 
   window.__tank5 = {
     getBoard: () => board,
