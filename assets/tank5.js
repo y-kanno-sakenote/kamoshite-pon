@@ -380,6 +380,7 @@
   function render(extraClasses = {}) {
     boardEl.style.gridTemplateColumns = `repeat(${COLS}, var(--tile-size))`;
     boardEl.style.gridTemplateRows = `repeat(${ROWS}, var(--tile-size))`;
+    gameScreen.style.setProperty("--rows", ROWS); // タイルの大きさを画面の高さからも決める（tank5.css）
     boardEl.innerHTML = "";
     // 選択中がパネルなら、隣接する「同じ軸・同じ数字」のパネルをまとめ候補としてハイライト
     const mergeTargets = {};
