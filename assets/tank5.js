@@ -1430,7 +1430,9 @@
     [shiboruBtn, document.querySelector("#gameScreen .info-bar"), document.querySelector("#gameScreen .action-row")].forEach((el) => el && ro.observe(el));
   }
 
-  window.__tank5 = {
+  // 検証用の入口：公開ページでは生やさない（ローカル・file://・URLに ?debug のときだけ）
+  const DEBUG_HOOK = location.protocol === "file:" || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || new URLSearchParams(location.search).has("debug");
+  if (DEBUG_HOOK) window.__tank5 = {
     getBoard: () => board,
     dims: () => ({ ROWS, COLS }),
     setIng: (r, c, type) => { board[r][c] = type === null ? null : makeIng(type); render(); },
